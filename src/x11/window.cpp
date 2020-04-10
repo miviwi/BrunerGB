@@ -3,6 +3,7 @@
 
 // X11/xcb headers
 #include <xcb/xcb.h>
+#include <xcb/xcb_event.h>
 #include <xcb/xcb_util.h>
 #include <X11/keysymdef.h>
 
@@ -12,6 +13,7 @@
 #include <array>
 #include <unordered_map>
 #include <optional>
+#include <xcb/xproto.h>
 
 namespace brgb {
 
@@ -22,12 +24,14 @@ auto gc_args(Args&&... args)
 }
 
 struct pX11Window {
-  xcb_connection_t *connection;
-  const xcb_setup_t *setup;
-  xcb_screen_t *screen;
+  xcb_connection_t *connection = nullptr;
+  const xcb_setup_t *setup     = nullptr;
+  xcb_screen_t *screen         = nullptr;
 
-  xcb_window_t window;
-  xcb_colormap_t colormap;
+  xcb_window_t window     = X11InvalidId;
+  xcb_colormap_t colormap = X11InvalidId;
+
+  xcb_atom_t atom_wm_delete_window = X11InvalidId;
 
   ~pX11Window();
 
@@ -143,41 +147,58 @@ auto pX11Window::createWindow(
       XCB_WINDOW_CLASS_INPUT_OUTPUT, visual ? visual : screen->root_visual, mask, args
   );
   auto err = xcb_request_check(connection, window_cookie);
-  if(!err) {
-#if !defined(NO_SET_WM_WINDOW_ROLE)
-    static const char atom_wm_window_role[] = "WM_WINDOW_ROLE";
-    auto atom_cookie = xcb_intern_atom(
-        connection,
-        0 /* only_if_exists */, sizeof(atom_wm_window_role)-1, atom_wm_window_role
-    );
-
-    xcb_generic_error_t *intern_atom_err = nullptr;
-    auto atom_reply = xcb_intern_atom_reply(connection, atom_cookie, &intern_atom_err);
-    if(intern_atom_err) {
-      free(intern_atom_err);
-      return false;
-    }
-
-    // Try to set the property - disergarding whether it succeedes or fails
-    static const char role_popup[] = "pop-up";
-    xcb_change_property(
-        connection,
-        XCB_PROP_MODE_REPLACE, window, atom_reply->atom, XCB_ATOM_STRING, 8,
-        sizeof(role_popup)-1, role_popup
-    );
-
-    // Make sure the commands are sent to the X server
-    xcb_flush(connection);
-
-    free(atom_reply);
-#endif
-
-    return true;
+  if(err) {
+    // There was an error - cleanup and signal failure
+    free(err);
+    return false;
   }
 
-  // There was an error - cleanup and signal failure
-  free(err);
-  return false;
+  auto atom_wm_protocols = x11().atom(X11Atom_WM_Protocols);
+  auto atom_wm_delete_window = x11().atom(X11Atom_WM_DeleteWindow);
+  auto atom_wm_winow_role = x11().atom(X11Atom_WM_WindowRole);
+
+  // Set WM_PROTOCOLS
+  const std::array<xcb_atom_t, 1> wm_protocols = {
+    atom_wm_delete_window,
+  };
+  auto change_protocols_cookie = xcb_change_property_checked(
+      connection, XCB_PROP_MODE_REPLACE, window,
+      atom_wm_protocols, XCB_ATOM_ATOM,
+      32 /* bits per list item */, wm_protocols.size() /* num list items */,
+      wm_protocols.data()
+  );
+
+#if !defined(NO_SET_WM_WINDOW_ROLE)
+  // Try to set WM_WINDOW_ROLE - disergarding whether it succeedes or fails
+  static const char role_popup[] = "pop-up";
+  xcb_change_property(
+      connection, XCB_PROP_MODE_REPLACE, window,
+      atom_wm_winow_role, XCB_ATOM_STRING,
+      8 /* bits per list item */, sizeof(role_popup)-1,
+      role_popup
+  );
+#endif
+
+  // ...and do the same with WM_NAME
+  static const char window_name[] = "BrunerGB";
+  xcb_change_property(
+      connection, XCB_PROP_MODE_REPLACE, window,
+      XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
+      8 /* bits per list item (a.k.a. character) */, sizeof(window_name)-1,
+      window_name
+  );
+
+  // Make sure the commands are sent to the X server
+  xcb_flush(connection);
+
+  auto change_protools_err = xcb_request_check(connection, change_protocols_cookie);
+  if(change_protools_err) {      // There was an error
+    free(change_protools_err);
+
+    return false;
+  }
+
+  return true;
 }
 
 auto pX11Window::createColormap(xcb_visualid_t visual) -> bool

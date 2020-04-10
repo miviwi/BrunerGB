@@ -38,4 +38,5 @@ target_sources (BrunerGB PRIVATE
   # Device sources
   #   LR35902
   ${SrcDir}/device/lr35902/cpu.cpp
+  ${SrcDir}/device/lr35902/registers.cpp
 )

@@ -14,6 +14,16 @@ using X11KeyCode          = u8;
 
 using X11XlibDisplayHandle = void /* Display */ *;
 
+using X11Id = u32;
+
+enum X11AtomName {
+  X11Atom_Invalid,
+
+  X11Atom_WM_Protocols,
+  X11Atom_WM_DeleteWindow,
+  X11Atom_WM_WindowRole,
+};
+
 // PIMPL struct
 struct pX11Connection;
 
@@ -35,12 +45,14 @@ public:
   auto connectionHandle() -> X11ConnectionHandle;
   // Returns a const xcb_setup_t* as an X11SetupHandle
   auto setupHandle() -> X11SetupHandle;
-  // Returns a const xcb_sscreen_t* as an X11screenHandle
+  // Returns a const xcb_screen_t* as an X11screenHandle
   auto screenHandle() -> X11ScreenHandle;
   // Returns an Xlib Display* as an X11XlibDisplayHandle
   auto xlibDisplayHandle() -> X11XlibDisplayHandle;
 
   auto defaultScreen() -> int;
+
+  auto atom(X11AtomName name) -> X11Id;
 
   // T must always be xcb_connection_t
   template <typename T>

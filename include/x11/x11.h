@@ -15,4 +15,8 @@ auto x11_was_init() -> bool;
 
 auto x11() -> X11Connection&;
 
+enum : u32 {
+  X11InvalidId = ~0u,
+};
+
 }

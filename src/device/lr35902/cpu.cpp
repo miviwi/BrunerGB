@@ -1,4 +1,4 @@
 #include <device/lr35902/cpu.h>
 
-namespace brgb {
+namespace brgb::lr35902 {
 }
