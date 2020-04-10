@@ -34,4 +34,8 @@ target_sources (BrunerGB PRIVATE
   ${SrcDir}/osd/util.cpp
   ${SrcDir}/osd/drawcall.cpp
   ${SrcDir}/osd/surface.cpp
+
+  # Device sources
+  #   LR35902
+  ${SrcDir}/device/lr35902/cpu.cpp
 )
