@@ -44,6 +44,10 @@ auto X11Event::from_X11EventHandle(X11EventLoop *event_loop, X11EventHandle ev) 
   if(event_type == Event::Invalid) return Event::Ptr();
 
   switch(event_type) {
+  case Event::Quit:
+    event.reset(new X11Event(ev));
+    break;
+
   case Event::KeyUp:
   case Event::KeyDown:
     event.reset(new X11KeyEvent(event_loop, ev));

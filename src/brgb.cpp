@@ -67,23 +67,7 @@ auto test_cpu() -> void
 {
   using namespace brgb;
 
-  lr35902::Registers regs;
-
-  regs.b = 0x55;
-  regs.c = 0xAA;
-
-  printf("B=0x%.2x C=0x%.2x BC=0x%.4x\n", regs.b.get(), regs.c.get(), regs.bc.get());
-
-  regs.f = 0x80;
-  regs.flags.c = 1;
-
-  printf("AF=0x%.4x\n"
-      "CF=%x H=%x N=%x ZF=%x\n",
-      regs.af.get(),
-      regs.flags.c.get(), regs.flags.h.get(), regs.flags.n.get(), regs.flags.z.get()
-  );
-
-
+  lr35902::Processor processor;
 
 }
 
@@ -128,7 +112,6 @@ int main(int argc, char *argv[])
   printf("OpenGL %s\n\n", gl_context.versionString().data());
 
   gl_context
-    .dbg_PopCallGroup()
     .dbg_PushCallGroup("OSD");
 
   glDisable(GL_DEPTH_TEST);
