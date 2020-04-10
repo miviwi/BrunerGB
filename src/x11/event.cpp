@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include <utility>
+#include <xcb/xproto.h>
 
 namespace brgb {
 
@@ -69,8 +70,19 @@ auto X11Event::type_from_handle(X11EventHandle ev) -> Event::Type
 {
   assert(ev);
 
+  auto atom_wm_delete_window = x11().atom(X11Atom_WM_DeleteWindow);
+
   auto response_type = x11_response_type(ev);
   switch(response_type) {
+  case XCB_CLIENT_MESSAGE: {
+    const auto& client_message = *(xcb_client_message_event_t *)ev;
+
+    auto data = client_message.data.data32[0];
+    if(data == atom_wm_delete_window) return Event::Quit;
+
+    return Event::Invalid;
+  }
+
   case XCB_KEY_PRESS:   return Event::KeyDown;
   case XCB_KEY_RELEASE: return Event::KeyUp;
 

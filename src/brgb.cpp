@@ -1,3 +1,4 @@
+#include "util/bit.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -25,6 +26,8 @@
 #include <osd/font.h>
 #include <osd/drawcall.h>
 #include <osd/surface.h>
+#include <device/lr35902/cpu.h>
+#include <device/lr35902/registers.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -60,6 +63,20 @@ auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_
   return std::move(font);
 }
 
+auto test_cpu() -> void
+{
+  using namespace brgb;
+
+  lr35902::Registers regs;
+
+  using ZF = Bit<16, 7>;
+
+  printf("u15::Mask=%x\n"
+      "Bit<16, 7>::Width=%llx Bit<16, 7>::Mask=%llx\n",
+      (unsigned)u15::Mask,
+      ZF::Width, ZF::Mask);
+}
+
 int main(int argc, char *argv[])
 {
   using namespace brgb;
@@ -79,6 +96,8 @@ int main(int argc, char *argv[])
   event_loop
     .init(&window);
 
+  test_cpu();
+
   GLXContext gl_context;
 
   gl_context
@@ -97,94 +116,6 @@ int main(int argc, char *argv[])
     .dbg_EnableMessages();
 
   printf("OpenGL %s\n\n", gl_context.versionString().data());
-
-  gl_context.dbg_PushCallGroup("Compute");
-
-  GLProgram compute_shader_program;
-
-  GLShader compute_shader_program_shader(GLShader::Compute);
-  compute_shader_program_shader
-    .glslVersion(430)
-    .source(R"COMPUTE(
-uniform writeonly image2D uiComputeOut;
-
-uniform float ufWavePeriod;
-
-layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
-
-void main()
-{
-  float work_group_x = float(gl_WorkGroupID.x) / 4096.0f;     // normalize to [0;1]
-
-  float wave_sin = sin(work_group_x * ufWavePeriod*(1.0f/2.0f));
-  float wave_cos = cos(work_group_x * ufWavePeriod);
-
-  float blue = (wave_sin < 0.0f) && (wave_cos < 0.0f) ? 1.0f : 0.0f;
-
-  vec2 wave = pow(vec2(wave_sin, wave_cos), vec2(2.0f));
-
-  imageStore(uiComputeOut, ivec2(int(gl_WorkGroupID.x), 0), vec4(wave, blue, 1));
-}
-)COMPUTE");
-
-  try {
-    compute_shader_program_shader.compile();
-  } catch(const std::exception& e) {
-    auto info_log = compute_shader_program_shader.infoLog();
-
-    if(info_log) {
-      puts(info_log->data());
-    }
-
-    return -2;
-  }
-
-  compute_shader_program_shader.label("p.ComputeCS");
-
-   compute_shader_program
-     .attach(compute_shader_program_shader);
-
-   try {
-    compute_shader_program.link();
-  } catch(const std::exception& e) {
-    if(!compute_shader_program.infoLog()) return -2;
-
-    puts(compute_shader_program.infoLog()->data());
-    return -2;
-  }
-
-  GLTexture2D compute_output_tex;
-  compute_output_tex
-    .alloc(4096, 1, 1, rgba8);
-
-  compute_output_tex.label("t2d.ComputeOutput");
-
-  glBindImageTexture(0, compute_output_tex.id(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
-
-  compute_shader_program.label("p.Compute");
-
-  compute_shader_program
-    .uniform("uiComputeOut", gl_context.texImageUnit(0))
-    .uniform("ufWavePeriod", 1024.0f);
-
-  std::chrono::high_resolution_clock clock;
-  auto start = clock.now();
-
-  compute_shader_program.use();
-  glDispatchCompute(4096, 1, 1);
-
-  auto end = clock.now();
-
-  auto ms_counts = std::chrono::milliseconds(1).count(); 
-
-  printf("\ncompute_shader_program took: %ldus\n\n",
-      std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
-
-  GLFence compute_fence;
-  compute_fence
-    .fence()
-    .label("f.Compute")
-    .block();
 
   gl_context
     .dbg_PopCallGroup()
@@ -312,7 +243,7 @@ void main()
     if(!running) break;
   }
 
-glPopDebugGroup();
+  glPopDebugGroup();
 
   gl_context
     .destroy();

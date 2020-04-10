@@ -44,6 +44,8 @@ struct Natural {
   inline auto get() -> StorageType { return data_; }
   inline operator StorageType() { return get(); }
 
+  inline auto ptr() -> StorageType * { return &data_; }
+
   inline auto operator++(int)
   {
     auto v = *this;

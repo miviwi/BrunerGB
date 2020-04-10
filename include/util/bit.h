@@ -25,7 +25,7 @@ struct BitRange<Precision, LoIdx, HiIdx> {
 /* else if */ Precision <= 64, u64,
     void>>>>;
 
-  enum : unsigned {
+  enum : u64 {
     Lo = LoIdx < 0 ? Precision+LoIdx : LoIdx,
     Hi = HiIdx < 0 ? Precision+HiIdx : HiIdx,
 
@@ -36,8 +36,9 @@ struct BitRange<Precision, LoIdx, HiIdx> {
     shift_ = Shift,
   };
 
-  enum : Type {
-    Mask = (~0ull >> (64 - Width)) << Lo,
+  enum : u64 {
+    StorageMask = (1ull << sizeof(Type)*8) - 1ull,
+    Mask = (StorageMask >> (sizeof(Type)*8 - Width)) << Lo,
 
     // Declared for compatibility between static and dynamic BitRanges
     mask_ = Mask,
@@ -332,6 +333,9 @@ private:
   Type mask_;
   unsigned shift_;
 };
+
+template <size_t Precision, int Which>
+using Bit = BitRange<Precision, Which, Which>;
 
 static inline auto bswap_u32(u32 v) -> u32
 {
