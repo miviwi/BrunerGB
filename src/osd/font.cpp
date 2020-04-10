@@ -4,7 +4,7 @@
 
 #include <limits>
 
-namespace brdrive {
+namespace brgb {
 
 OSDBitmapFont::OSDBitmapFont() :
   loaded_(false)

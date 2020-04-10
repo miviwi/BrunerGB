@@ -9,7 +9,7 @@
 
 #include <exception>
 
-namespace brdrive {
+namespace brgb {
 
 static bool g_osd_was_init = false;
 

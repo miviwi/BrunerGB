@@ -7,7 +7,7 @@
 #include <util/natural.h>
 #include <util/integer.h>
 
-namespace brdrive {
+namespace brgb {
 
 // Specializations with default width arguments
 template <size_t NumBits = 64> struct Natural;

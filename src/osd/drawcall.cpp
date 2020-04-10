@@ -16,7 +16,7 @@
 #include <utility>
 #include <limits>
 
-namespace brdrive {
+namespace brgb {
 
 OSDDrawCall::OSDDrawCall() :
   command(DrawInvalid), type(DrawTypeInvalid),

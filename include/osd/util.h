@@ -4,7 +4,7 @@
 
 #include <array>
 
-namespace brdrive {
+namespace brgb {
 
 using mat4 = std::array<float, 4*4>;
 

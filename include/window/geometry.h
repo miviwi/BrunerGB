@@ -3,7 +3,7 @@
 #include <types.h>
 #include <util/primitive.h>
 
-namespace brdrive {
+namespace brgb {
 
 struct Geometry {
   u16 x, y;

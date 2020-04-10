@@ -6,7 +6,7 @@
 #include <util/bit.h>
 #include <util/primitive.h>
 
-namespace brdrive {
+namespace brgb {
 
 struct Color {
 public:

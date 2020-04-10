@@ -1,7 +1,7 @@
 set (SrcDir ${PROJECT_SOURCE_DIR}/src)
 
-target_sources (BrunerDrive PRIVATE
-  ${SrcDir}/brdrive.cpp
+target_sources (BrunerGB PRIVATE
+  ${SrcDir}/brgb.cpp
 
   # Window specific sources
   ${SrcDir}/window/window.cpp

@@ -5,7 +5,7 @@
 #include <exception>
 #include <stdexcept>
 
-namespace brdrive {
+namespace brgb {
 
 using X11ConnectionHandle = void /* xcb_connection_t */ *;
 using X11SetupHandle      = const void /* xcb_setup_t */ *;

@@ -2,8 +2,8 @@ cmake_minimum_required (VERSION 3.11)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set up the project and it's main executable
-project (BrunerDrive)
-add_executable (BrunerDrive)
+project (BrunerGB)
+add_executable (BrunerGB)
 
 find_package (X11 REQUIRED)
 find_package (OpenGL REQUIRED)
@@ -11,9 +11,9 @@ find_package (OpenGL REQUIRED)
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_FLAGS "-std=c++17 -g")
 
-target_include_directories (BrunerDrive PUBLIC ./include)
-target_include_directories (BrunerDrive PRIVATE ./extern)
-target_link_libraries (BrunerDrive PRIVATE
+target_include_directories (BrunerGB PUBLIC ./include)
+target_include_directories (BrunerGB PRIVATE ./extern)
+target_link_libraries (BrunerGB PRIVATE
   # X11
   xcb X11-xcb xcb-util ${X11_LIBRARIES}
 

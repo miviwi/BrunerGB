@@ -6,7 +6,7 @@
 #include <exception>
 #include <stdexcept>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class GLContext;

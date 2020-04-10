@@ -1,6 +1,6 @@
 #pragma once
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declaration
 class GLProgram;

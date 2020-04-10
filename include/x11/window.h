@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace brdrive {
+namespace brgb {
 
 using X11WindowHandle = u32;
 

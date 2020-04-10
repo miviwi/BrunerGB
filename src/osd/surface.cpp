@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 // Initialized during osd_init()
 GLProgram **OSDSurface::s_surface_programs = nullptr;

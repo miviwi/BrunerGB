@@ -1,6 +1,6 @@
 #include <osd/util.h>
 
-namespace brdrive {
+namespace brgb {
 
 auto osd_ortho(float t, float l, float b, float r, float n, float f) -> mat4
 {

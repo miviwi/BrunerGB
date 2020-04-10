@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 GLFence::GLFence() :
   sync_(nullptr),

@@ -4,7 +4,7 @@
 
 #include <string>
 
-namespace brdrive {
+namespace brgb {
 
 class GLObject {
 public:

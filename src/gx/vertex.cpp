@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 [[using gnu: always_inline]]
 static constexpr auto GLType_to_type(GLType type) -> GLEnum

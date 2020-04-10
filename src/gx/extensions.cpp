@@ -9,7 +9,7 @@
 
 #include <cassert>
 
-namespace brdrive {
+namespace brgb {
 
 // 'g_num_extensions' and 'g_extension' are lazy-initialized
 //   by queryExtension(), since the required data can only

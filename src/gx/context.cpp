@@ -11,7 +11,7 @@
 
 #include <new>
 
-namespace brdrive {
+namespace brgb {
 
 thread_local GLContext *g_current_context = nullptr;
 

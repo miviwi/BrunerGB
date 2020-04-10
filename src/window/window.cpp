@@ -1,6 +1,6 @@
 #include <window/window.h>
 
-namespace brdrive {
+namespace brgb {
 
 IWindow::IWindow() :
   geometry_({ 0, 0, 400, 400 }), background_(Color::transparent())

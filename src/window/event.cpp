@@ -6,7 +6,7 @@
 #include <deque>
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 IEventLoop::IEventLoop() :
   was_init_(false)

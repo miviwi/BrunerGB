@@ -7,7 +7,7 @@
 
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 GLObject::GLObject() :
   GLObject(GL_INVALID_ENUM)

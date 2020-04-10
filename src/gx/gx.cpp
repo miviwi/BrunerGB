@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-namespace brdrive {
+namespace brgb {
 
 bool g_gx_was_init = false;
 GLId g_null_vao = GLNullId;

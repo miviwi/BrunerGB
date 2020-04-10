@@ -11,7 +11,7 @@
 
 #include <unordered_map>
 
-namespace brdrive {
+namespace brgb {
 
 struct pX11Connection {
   Display *xlib_display;

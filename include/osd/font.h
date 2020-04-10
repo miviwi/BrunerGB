@@ -7,7 +7,7 @@
 #include <vector>
 #include <optional>
 
-namespace brdrive {
+namespace brgb {
 
 enum ExtendedCharacter : u8 {
 

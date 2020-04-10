@@ -3,7 +3,7 @@
 #include <types.h>
 #include <gx/context.h>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declaration
 class IWindow;

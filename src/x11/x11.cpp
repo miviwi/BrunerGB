@@ -5,7 +5,7 @@
 
 #include <memory>
 
-namespace brdrive {
+namespace brgb {
 
 std::unique_ptr<X11Connection> g_x11;
 

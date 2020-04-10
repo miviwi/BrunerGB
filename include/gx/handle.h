@@ -1,6 +1,6 @@
 #pragma once
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class GLVertexArray;

@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cstdio>
 
-namespace brdrive::osd_detail {
+namespace brgb::osd_detail {
 
 static const char *s_osd_vs_src = R"VERT(
 #if defined(USE_INSTANCE_ATTRIBUTES)

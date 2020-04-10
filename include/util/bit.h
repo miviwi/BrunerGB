@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <algorithm>
 
-namespace brdrive {
+namespace brgb {
 
 template <size_t Precision, int...>
 struct BitRange;

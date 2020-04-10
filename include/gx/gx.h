@@ -5,7 +5,7 @@
 #include <exception>
 #include <stdexcept>
 
-namespace brdrive {
+namespace brgb {
 
 using GLEnum   = u32;
 using GLId = unsigned;

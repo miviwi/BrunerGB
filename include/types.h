@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 
-namespace brdrive {
+namespace brgb {
   
 using size_t = std::size_t;
 

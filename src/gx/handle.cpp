@@ -1,7 +1,7 @@
 #include <gx/handle.h>
 #include <gx/vertex.h>
 
-namespace brdrive {
+namespace brgb {
 
 GLVertexArrayHandle::GLVertexArrayHandle() :
   ptr_(nullptr)
@@ -57,7 +57,7 @@ auto GLVertexArrayHandle::destroy() -> GLVertexArrayHandle&
 
 }
 
-namespace brdrive::vertex_format_detail {
+namespace brgb::vertex_format_detail {
 
 auto GLVertexArray_to_ptr(GLVertexArray&& array) -> GLVertexArrayHandle
 {

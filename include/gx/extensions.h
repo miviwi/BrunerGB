@@ -2,7 +2,7 @@
 
 #include <gx/gx.h>
 
-namespace brdrive {
+namespace brgb {
 // 'name' MUST be the WHOLE extension name string i.e.:
 //            queryExtension("GL_ARB_buffer_storage")
 //     *NOT*  queryExtension("ARB_buffer_storage")

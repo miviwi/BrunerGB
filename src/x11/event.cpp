@@ -11,7 +11,7 @@
 
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 template <typename T = xcb_generic_event_t>
 static inline auto xcb_ev(X11EventHandle ev) -> const T*

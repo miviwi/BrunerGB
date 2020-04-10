@@ -10,7 +10,7 @@
 
 #include <algorithm>
 
-namespace brdrive {
+namespace brgb {
 
 GLPipeline::GLPipeline()
 {

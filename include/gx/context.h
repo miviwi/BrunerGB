@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <array>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class IWindow;

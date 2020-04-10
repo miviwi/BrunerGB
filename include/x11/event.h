@@ -6,7 +6,7 @@
 
 #include <memory>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declaration
 class X11EventLoop;

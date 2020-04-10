@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace brdrive {
+namespace brgb {
 
 class GLFence {
 public:

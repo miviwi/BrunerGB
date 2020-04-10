@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <algorithm>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declaration
 template <size_t NumBits>

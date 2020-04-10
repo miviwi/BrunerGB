@@ -2,7 +2,7 @@
 
 #include <types.h>
 
-namespace brdrive {
+namespace brgb {
 
 void osd_init();
 void osd_finalize();

@@ -8,7 +8,7 @@
 #include <array>
 #include <optional>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class GLVertexBuffer;

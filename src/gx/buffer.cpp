@@ -11,7 +11,7 @@
 
 #include <new>
 
-namespace brdrive {
+namespace brgb {
 
 [[using gnu: always_inline]]
 static constexpr auto GLBufferUsage_to_usage(GLBuffer::Usage usage) -> GLEnum

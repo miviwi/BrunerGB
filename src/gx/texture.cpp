@@ -11,7 +11,7 @@
 
 #include <cassert>
 
-namespace brdrive {
+namespace brgb {
 
 [[using gnu: always_inline]]
 static constexpr auto bind_target_to_Dimensions(GLEnum bind_target) -> GLTexture::Dimensions

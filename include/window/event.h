@@ -8,7 +8,7 @@
 #include <memory>
 #include <deque>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class IWindow;

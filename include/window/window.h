@@ -7,7 +7,7 @@
 
 #include <string>
 
-namespace brdrive {
+namespace brgb {
 
 class IWindow {
 public:

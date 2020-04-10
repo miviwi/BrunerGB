@@ -11,7 +11,7 @@
 // OpenGL headers
 #include <GL/gl.h>
 
-namespace brdrive {
+namespace brgb {
 
 static int GLX_VisualAttribs[] = {
   GLX_X_RENDERABLE, True,
@@ -143,7 +143,7 @@ GLXContext::~GLXContext()
 
 auto GLXContext::acquire(IWindow *window_, GLContext *share) -> GLContext&
 {
-  assert(brdrive::x11_was_init() &&
+  assert(brgb::x11_was_init() &&
       "x11_init() MUST be called prior to creating a GLXContext!");
 
   auto display = x11().xlibDisplay<Display>();

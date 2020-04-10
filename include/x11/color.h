@@ -2,6 +2,6 @@
 
 #include <window/color.h>
 
-namespace brdrive {
+namespace brgb {
 
 }

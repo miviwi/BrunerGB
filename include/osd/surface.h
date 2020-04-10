@@ -12,7 +12,7 @@
 #include <vector>
 #include <memory>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declarations
 class OSDBitmapFont;

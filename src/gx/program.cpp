@@ -10,7 +10,7 @@
 #include <regex>
 #include <utility>
 
-namespace brdrive {
+namespace brgb {
 
 thread_local GLId g_bound_program = GLNullId;
 

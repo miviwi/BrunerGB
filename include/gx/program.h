@@ -14,7 +14,7 @@
 #include <optional>
 #include <tuple>
 
-namespace brdrive {
+namespace brgb {
 
 // Forward declaration
 class GLTexImageUnit;
