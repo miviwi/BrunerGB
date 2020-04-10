@@ -69,12 +69,22 @@ auto test_cpu() -> void
 
   lr35902::Registers regs;
 
-  using ZF = Bit<16, 7>;
+  regs.b = 0x55;
+  regs.c = 0xAA;
 
-  printf("u15::Mask=%x\n"
-      "Bit<16, 7>::Width=%llx Bit<16, 7>::Mask=%llx\n",
-      (unsigned)u15::Mask,
-      ZF::Width, ZF::Mask);
+  printf("B=0x%.2x C=0x%.2x BC=0x%.4x\n", regs.b.get(), regs.c.get(), regs.bc.get());
+
+  regs.f = 0x80;
+  regs.flags.c = 1;
+
+  printf("AF=0x%.4x\n"
+      "CF=%x H=%x N=%x ZF=%x\n",
+      regs.af.get(),
+      regs.flags.c.get(), regs.flags.h.get(), regs.flags.n.get(), regs.flags.z.get()
+  );
+
+
+
 }
 
 int main(int argc, char *argv[])
