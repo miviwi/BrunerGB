@@ -43,12 +43,6 @@ public:
   using Address = u64;     // TODO: Somehow fudge this type into
                            //   a template parameter (?)
 
-  using AddressRange = std::pair<Address /* lo */, Address /* hi */>;
-
-  enum : Address {
-    AddressRangeInvalid = (Address)~0ull,
-  };
-
   auto r(const char *address_range) -> BusReadHandler&;
   auto w(const char *address_range) -> BusWriteHandler&;
 
@@ -61,10 +55,10 @@ public:
   auto lookupW(Address addr) -> BusWriteHandler *;
 
 private:
-  Address mask_;
-  std::vector<AddressRange> ranges_;
+  const char *address_range_;   // For debug purposes
 
-  std::vector<MappedAddressRange> mapped_ranges_;
+  Address global_mask_;
+  std::vector<MappedAddressRange> ranges_;
 };
 
 }
