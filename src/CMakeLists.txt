@@ -35,6 +35,12 @@ target_sources (BrunerGB PRIVATE
   ${SrcDir}/osd/drawcall.cpp
   ${SrcDir}/osd/surface.cpp
 
+  # System bus
+  ${SrcDir}/bus/bus.cpp
+  ${SrcDir}/bus/device.cpp
+  ${SrcDir}/bus/memorymap.cpp
+  ${SrcDir}/bus/mappedrange.cpp
+
   # Device sources
   #   LR35902
   ${SrcDir}/device/lr35902/cpu.cpp
