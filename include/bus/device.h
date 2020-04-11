@@ -10,8 +10,8 @@ class DeviceMemoryMap;
 
 class IBusDevice {
 public:
-  virtual auto attach(SystemBus *bus) -> DeviceMemoryMap;
-  virtual auto detach(DeviceMemoryMap *map) -> void;
+  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap = 0;
+  virtual auto detach(DeviceMemoryMap *map) -> void = 0;
 };
 
 }

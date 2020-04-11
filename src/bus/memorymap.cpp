@@ -3,6 +3,11 @@
 namespace brgb {
 
 template <size_t AddressWidth>
+auto AddressSpace<AddressWidth>::mapDevice(DeviceMemoryMap *device_memmap) -> void
+{
+}
+
+template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
 {
   return 0;
