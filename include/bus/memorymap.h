@@ -7,6 +7,10 @@
 
 namespace brgb {
 
+// Forward declarations
+class BusReadHandler;
+class BusWriteHandler;
+
 template <size_t AddressWidth>
 class AddressSpace {
 public:
@@ -27,6 +31,8 @@ private:
 
 class DeviceMemoryMap {
 public:
+  auto r(const char *address_range) -> BusReadHandler&;
+  auto w(const char *address_range) -> BusWriteHandler&;
 
 private:
 };

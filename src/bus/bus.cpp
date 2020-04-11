@@ -2,4 +2,6 @@
 
 namespace brgb {
 
+template class Bus<16>;
+
 }
