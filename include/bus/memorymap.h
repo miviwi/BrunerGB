@@ -5,6 +5,7 @@
 #include <bus/mappedrange.h>
 
 #include <type_traits>
+#include <memory>
 #include <vector>
 #include <utility>
 
@@ -43,22 +44,32 @@ public:
   using Address = u64;     // TODO: Somehow fudge this type into
                            //   a template parameter (?)
 
-  auto r(const char *address_range) -> BusReadHandler&;
-  auto w(const char *address_range) -> BusWriteHandler&;
+  // Returns a new BusReadHandler/BusWriteHandler for r()/w()
+  //  respectively whose 
+  //    - lo/hi Addresses
+  //    - mask
+  //    - address_range (debug variable)
+  //  are set appropriately, but the rest of the members have
+  //  their default value
+  //     - 'address_range' is specified in a format which allows
+  //       multiple disjoint ranges to be used for a given handler
+  //       ex.
+  //                 0x1000-0x1fff
+  //                 0x1000-0x1fff,0x3000-0x3fff
+
+  auto r(const char *address_range, u64 mask = ~0ull) -> BusTransactionHandlerSetRef;
+  auto w(const char *address_range, u64 mask = ~0ull) -> BusTransactionHandlerSetRef;
 
   // Lookup the designated BusReadHandler for 'addr'
   //   - Can return NULL when there is no handler defined
-  auto lookupR(Address addr) -> BusReadHandler *;
+  auto lookupR(Address addr) const -> BusReadHandler *;
 
   // Lookup the designated BusWriteHandler for 'addr'
   //   - Can return NULL when there is no handler defined
-  auto lookupW(Address addr) -> BusWriteHandler *;
+  auto lookupW(Address addr) const -> BusWriteHandler *;
 
 private:
-  const char *address_range_;   // For debug purposes
-
-  Address global_mask_;
-  std::vector<MappedAddressRange> ranges_;
+  std::vector<BusTransactionHandler::Ptr> read_, write_;
 };
 
 }
