@@ -53,6 +53,57 @@ auto SystemBus::createMap(IBusDevice *device) -> DeviceMemoryMap *
   return device_memmap_ptr.get();
 }
 
+auto SystemBus::deviceAddressSpace(IBusDevice *device) -> IAddressSpace *
+{
+  auto it = devices_.find(device);
+  if(it == devices_.end()) return nullptr;    // 'device' hasn't been registered
+
+  return it->second.get();
+}
+
+template <size_t AddressWidth>
+Bus<AddressWidth>::Bus(SystemBus *sys_bus, IBusDevice *device) :
+  sys_bus_(sys_bus)
+{
+  addr_space_ = (AddressSpace<AddressWidth> *)sys_bus->deviceAddressSpace(device);
+}
+
+template <size_t AddressWidth>
+auto Bus<AddressWidth>::readByte(Address addr) -> u8
+{
+  assert(addr_space_ &&
+      "Bus<AddressWidth>::readByte() called without assiging an AddressSpace!");
+
+  return addr_space_->readByte(addr);
+}
+
+template <size_t AddressWidth>
+auto Bus<AddressWidth>::readWord(Address addr) -> u16
+{
+  assert(addr_space_ &&
+      "Bus<AddressWidth>::readWord() called without assiging an AddressSpace!");
+
+  return addr_space_->readWord(addr);
+}
+
+template <size_t AddressWidth>
+auto Bus<AddressWidth>::writeByte(Address addr, u8 data) -> void
+{
+  assert(addr_space_ &&
+      "Bus<AddressWidth>::writeByte() called without assiging an AddressSpace!");
+
+  addr_space_->writeByte(addr, data);
+}
+
+template <size_t AddressWidth>
+auto Bus<AddressWidth>::writeWord(Address addr, u16 data) -> void
+{
+  assert(addr_space_ &&
+      "Bus<AddressWidth>::writeWord() called without assiging an AddressSpace!");
+
+  addr_space_->writeWord(addr, data);
+}
+
 template class Bus<16>;
 
 }

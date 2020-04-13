@@ -18,6 +18,18 @@ auto AddressSpace<AddressWidth>::mapDevice(
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
 {
+  for(const auto& dev : devices_) {
+    auto handler = dev->lookupR(addr);
+    if(!handler) continue;     // Device has no handler defined for this address
+
+    const auto& read_byte = handler->readByte();
+
+    return read_byte(addr);
+  }
+
+  // TODO: open-bus behaviour for unmapped addresses?
+  //       somehow signify the read failed?
+
   return 0;
 }
 
@@ -25,6 +37,18 @@ auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::readWord(Address addr) -> u16
 {
+  for(const auto& dev : devices_) {
+    auto handler = dev->lookupR(addr);
+    if(!handler) continue;     // Device has no handler defined for this address
+
+    const auto& read_word = handler->readWord();
+
+    return read_word(addr);
+  }
+
+  // TODO: open-bus behaviour for unmapped addresses?
+  //       somehow signify the read failed?
+
   return 0;
 }
 
@@ -32,12 +56,30 @@ auto AddressSpace<AddressWidth>::readWord(Address addr) -> u16
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::writeByte(Address addr, u8 data) -> void
 {
+  for(const auto& dev : devices_) {
+    auto handler = dev->lookupW(addr);
+    if(!handler) continue;     // Device has no handler defined for this address
+
+    const auto& write_byte = handler->writeByte();
+
+    write_byte(addr, data);
+    break;
+  }
 }
 
 // TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::writeWord(Address addr, u16 data) -> void
 {
+  for(const auto& dev : devices_) {
+    auto handler = dev->lookupW(addr);
+    if(!handler) continue;     // Device has no handler defined for this address
+
+    const auto& write_word = handler->writeWord();
+
+    write_word(addr, data);
+    break;
+  }
 }
 
 template class AddressSpace<16>;

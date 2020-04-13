@@ -33,6 +33,8 @@ public:
   //   TODO: Make DeviceMemoryMap an internally ref-counted object (?)
   auto createMap(IBusDevice *device) -> DeviceMemoryMap *;
 
+  auto deviceAddressSpace(IBusDevice *device) -> IAddressSpace *;
+
 private:
   AddressSpaceFactory addrspace_factory_;
 
@@ -44,6 +46,8 @@ class Bus {
 public:
   using Address = typename AddressSpace<AddressWidth>::Address;
 
+  Bus(SystemBus *sys_bus, IBusDevice *device);
+
   auto readByte(Address addr) -> u8;
   auto readWord(Address addr) -> u16;
 
@@ -51,9 +55,9 @@ public:
   auto writeWord(Address addr, u16 data) -> void;
 
 private:
-  SystemBus *sys_bus_;
+  SystemBus *sys_bus_ = nullptr;
 
-  AddressSpace<AddressWidth> *addr_space_;
+  AddressSpace<AddressWidth> *addr_space_ = nullptr;
 };
 
 }
