@@ -71,7 +71,7 @@ public:
 };
 
 template <size_t AddressWidth>
-class AddressSpace : public IAddressSpace {
+class AddressSpace final : public IAddressSpace {
 public:
   using Address = std::conditional_t<
     AddressWidth >= 32, u32, std::conditional_t<

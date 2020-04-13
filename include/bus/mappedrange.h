@@ -81,7 +81,7 @@ protected:
                                 //   passing them into a handler
 };
 
-class BusReadHandler : public BusTransactionHandler {
+class BusReadHandler final : public BusTransactionHandler {
 public:
   using ByteHandler = std::function<u8(Address)>;
   using WordHandler = std::function<u16(Address)>;
@@ -116,7 +116,7 @@ private:
   std::optional<WordHandler> word_;
 };
 
-class BusWriteHandler : public BusTransactionHandler {
+class BusWriteHandler final : public BusTransactionHandler {
 public:
   using ByteHandler = std::function<void(Address, u8 /* data */)>;
   using WordHandler = std::function<void(Address, u16 /* data */)>;
@@ -176,7 +176,7 @@ protected:
   BusTransactionHandlerSet() = default;
 };
 
-class BusReadHandlerSet : public BusTransactionHandlerSet {
+class BusReadHandlerSet final : public BusTransactionHandlerSet {
 public:
   static auto from_address_range(const char *address_range) -> BusTransactionHandlerSetRef;
 
@@ -196,7 +196,7 @@ private:
   std::vector<std::shared_ptr<BusReadHandler>> handlers_;
 };
 
-class BusWriteHandlerSet : public BusTransactionHandlerSet {
+class BusWriteHandlerSet final : public BusTransactionHandlerSet {
 public:
   static auto from_address_range(const char *address_range) -> BusTransactionHandlerSetRef;
 
