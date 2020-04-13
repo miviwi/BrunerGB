@@ -7,8 +7,10 @@
 
 namespace brgb::lr35902 {
 
-class Processor {
+class Processor : public IBusDevice {
 public:
+  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * = 0;
+  virtual auto detach(DeviceMemoryMap *map) -> void = 0;
 
 protected:
   Bus<16> *bus_;

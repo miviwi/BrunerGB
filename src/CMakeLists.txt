@@ -45,4 +45,7 @@ target_sources (BrunerGB PRIVATE
   #   LR35902
   ${SrcDir}/device/lr35902/cpu.cpp
   ${SrcDir}/device/lr35902/registers.cpp
+
+  # System/Gameboy sources
+  ${SrcDir}/system/gb.cpp
 )

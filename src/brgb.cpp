@@ -2,8 +2,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
 
 #include <brgb.h>
+#include <memory>
 #include <types.h>
 #include <window/geometry.h>
 #include <window/color.h>
@@ -28,6 +30,9 @@
 #include <osd/surface.h>
 #include <device/lr35902/cpu.h>
 #include <device/lr35902/registers.h>
+#include <bus/bus.h>
+#include <bus/device.h>
+#include <bus/memorymap.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -44,6 +49,8 @@
 #include <unordered_map>
 #include <chrono>
 #include <optional>
+
+using namespace brgb;
 
 auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_t>>
 {
@@ -63,17 +70,107 @@ auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_
   return std::move(font);
 }
 
+class TestCPU : public lr35902::Processor {
+public:
+  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
+  {
+    auto map = bus->createMap(this);
+
+    // Perform some device-specific initialization here for 'target'
+
+    return map;
+  }
+
+  virtual auto detach(DeviceMemoryMap *map) -> void final
+  {
+  }
+};
+
+class TestRAM : public IBusDevice {
+public:
+  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
+  {
+    return bus->createMap(this);
+  }
+
+  virtual auto detach(DeviceMemoryMap *map) -> void final
+  {
+    assert(0);
+  }
+
+  auto readByteHandler() -> BusReadHandler::ByteHandler
+  {
+    return BusReadHandler::ByteHandler([this](auto addr) -> u8 {
+        return readByte((u16)addr);
+    });
+  }
+
+  auto writeByteHandler() -> BusWriteHandler::ByteHandler
+  {
+    return BusWriteHandler::ByteHandler([this](auto addr, u8 data) -> void {
+        writeByte((u16)addr, data);
+    });
+  }
+
+private:
+  auto readByte(u16 address) -> u8
+  {
+    return ram_[address];
+  }
+
+  auto writeByte(u16 address, u8 data) -> void
+  {
+    ram_[address] = data;
+  }
+
+  u8 ram_[0x2000];
+};
+
+class TestSystem {
+public:
+  auto init() -> TestSystem&
+  {
+    bus = std::make_unique<SystemBus>();
+
+    cpu = std::make_unique<TestCPU>();
+    ram = std::make_unique<TestRAM>();
+
+    bus->addressSpaceFactory([]() -> IAddressSpace * {
+        return new AddressSpace<16>();
+    });
+
+    auto& cpu_ram = *cpu->attach(bus.get(), ram.get());
+
+    cpu_ram
+      .r("0x0000-0x1fff,0x2000-0x3fff", [this](BusTransactionHandlerSetRef& handler_set) {
+          handler_set.get<BusReadHandlerSet>()
+            .fn(ram->readByteHandler());
+      })
+      .w("0x0000-0x1fff,0x2000-0x3fff", [this](BusTransactionHandlerSetRef& handler_set) {
+          handler_set.get<BusWriteHandlerSet>()
+            .fn(ram->writeByteHandler());
+      });
+
+    return *this;
+  }
+
+  std::unique_ptr<SystemBus> bus;
+
+  std::unique_ptr<TestCPU> cpu;
+  std::unique_ptr<TestRAM> ram;
+};
+
 auto test_cpu() -> void
 {
-  using namespace brgb;
+  TestSystem test_system;
 
-  lr35902::Processor processor;
+  test_system.init();
+
 
 }
 
 int main(int argc, char *argv[])
 {
-  using namespace brgb;
   x11_init();
 
   X11Window window;

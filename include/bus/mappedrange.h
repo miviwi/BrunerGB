@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 #include <memory>
+#include <stdexcept>
 #include <functional>
 #include <vector>
 #include <optional>
@@ -27,6 +28,12 @@ public:
   };
 
   using Ptr = std::shared_ptr<BusTransactionHandler>;
+
+  struct InvalidAddressRangeError : public std::runtime_error {
+    InvalidAddressRangeError() :
+      std::runtime_error("The specified address range is invalid!")
+    { }
+  };
 
   const char *address_range;   // For debug purposes
 
@@ -143,14 +150,9 @@ public:
   // Call mask() for each BusReadHandler in this set
   auto mask(Address m) -> BusTransactionHandlerSet&;
 
-  auto eachPtr(
+  virtual auto eachPtr(
       std::function<void(BusTransactionHandler::Ptr)> fn
-    ) -> BusTransactionHandlerSet&
-  {
-    assert(0 && "BusTransactionHandlerSet::eachPtr() stub called!");
-
-    return *this;
-  }
+    ) -> BusTransactionHandlerSet& = 0;
 
   auto each(std::function<void(BusTransactionHandler&)> fn) -> BusTransactionHandlerSet&
   {
@@ -172,9 +174,9 @@ public:
   auto fn(BusReadHandler::WordHandler f) -> BusReadHandlerSet&;
 
 protected:
-  auto eachPtr(
+  virtual auto eachPtr(
       std::function<void(BusTransactionHandler::Ptr)> fn
-    ) -> BusTransactionHandlerSet&;
+    ) -> BusTransactionHandlerSet& final;
 
 private:
   friend BusTransactionHandlerSet;
@@ -192,9 +194,9 @@ public:
   auto fn(BusWriteHandler::WordHandler f) -> BusWriteHandlerSet&;
 
 protected:
-  auto eachPtr(
+  virtual auto eachPtr(
       std::function<void(BusTransactionHandler::Ptr)> fn
-    ) -> BusTransactionHandlerSet&;
+    ) -> BusTransactionHandlerSet& final;
 
 private:
   friend BusTransactionHandlerSet;

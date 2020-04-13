@@ -7,42 +7,20 @@
 #include <type_traits>
 #include <memory>
 #include <vector>
+#include <functional>
 #include <utility>
 
 namespace brgb {
 
 // Forward declarations
-class DeviceMemoryMap;
-
-class IAddressSpace {
-public:
-  virtual auto mapDevice(DeviceMemoryMap *device_memmap) -> void = 0;
-};
-
-template <size_t AddressWidth>
-class AddressSpace : public IAddressSpace {
-public:
-  using Address = std::conditional<
-    AddressWidth >= 32, u32, std::conditional<
-    AddressWidth >= 16, u16,
- /* AddressWidth >= 8 */ u8
-   >>;
-
-  virtual auto mapDevice(DeviceMemoryMap *device_memmap) -> void final;
-
-  auto readByte(Address addr) -> u8;
-  auto readWord(Address addr) -> u16;
-
-  auto writeByte(Address addr, u8 data) -> void;
-  auto writeWord(Address addr, u16 data) -> void;
-
-private:
-};
+class IAddressSpace;
 
 class DeviceMemoryMap {
 public:
   using Address = u64;     // TODO: Somehow fudge this type into
-                           //   a template parameter (?)
+                           //         a template parameter (?)
+
+  using Ptr = std::shared_ptr<DeviceMemoryMap>;
 
   // Returns a new BusReadHandler/BusWriteHandler for r()/w()
   //  respectively whose 
@@ -57,8 +35,15 @@ public:
   //                 0x1000-0x1fff
   //                 0x1000-0x1fff,0x3000-0x3fff
 
-  auto r(const char *address_range, u64 mask = ~0ull) -> BusTransactionHandlerSetRef;
-  auto w(const char *address_range, u64 mask = ~0ull) -> BusTransactionHandlerSetRef;
+  using SetupHandlerFn = std::function<void(BusTransactionHandlerSetRef&)>;
+
+  auto r(
+      const char *address_range, SetupHandlerFn setup_handler
+    ) -> DeviceMemoryMap&;
+
+  auto w(
+      const char *address_range, SetupHandlerFn setup_handler
+    ) -> DeviceMemoryMap&;
 
   // Lookup the designated BusReadHandler for 'addr'
   //   - Can return NULL when there is no handler defined
@@ -70,6 +55,32 @@ public:
 
 private:
   std::vector<BusTransactionHandler::Ptr> read_, write_;
+};
+
+class IAddressSpace {
+public:
+  virtual auto mapDevice(DeviceMemoryMap *device_memmap) -> DeviceMemoryMap::Ptr = 0;
+};
+
+template <size_t AddressWidth>
+class AddressSpace : public IAddressSpace {
+public:
+  using Address = std::conditional<
+    AddressWidth >= 32, u32, std::conditional<
+    AddressWidth >= 16, u16,
+ /* AddressWidth >= 8 */ u8
+   >>;
+
+  virtual auto mapDevice(DeviceMemoryMap *device_memmap) -> DeviceMemoryMap::Ptr final;
+
+  auto readByte(Address addr) -> u8;
+  auto readWord(Address addr) -> u16;
+
+  auto writeByte(Address addr, u8 data) -> void;
+  auto writeWord(Address addr, u16 data) -> void;
+
+private:
+  std::vector<DeviceMemoryMap::Ptr> devices_;
 };
 
 }
