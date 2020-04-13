@@ -146,6 +146,8 @@ public:
         return new AddressSpace<16>();
     });
 
+    cpu->connect(bus.get());
+
     auto& cpu_ram = *cpu->attach(bus.get(), ram.get());
 
     cpu_ram
@@ -159,8 +161,6 @@ public:
             .fn(ram->writeByteHandler())
             .mask(0x1fff);
       });
-
-   cpu->connect(bus.get());
 
    auto cpu_bus = cpu->bus();
 

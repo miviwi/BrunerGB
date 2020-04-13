@@ -56,7 +56,19 @@ auto SystemBus::createMap(IBusDevice *device) -> DeviceMemoryMap *
 auto SystemBus::deviceAddressSpace(IBusDevice *device) -> IAddressSpace *
 {
   auto it = devices_.find(device);
-  if(it == devices_.end()) return nullptr;    // 'device' hasn't been registered
+  if(it == devices_.end()) {                  // 'device' hasn't been registered
+        // Allocate a new clean AddressSpace...
+    auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory());
+
+    //  ...and place it in the map
+    auto [inserted_it, inserted] = devices_.insert(
+        { device, device_addrspace }
+    );
+
+    assert(inserted);
+
+    it = inserted_it;
+  }
 
   return it->second.get();
 }
