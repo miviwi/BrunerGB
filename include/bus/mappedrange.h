@@ -35,7 +35,7 @@ public:
     { }
   };
 
-  const char *address_range;   // For debug purposes
+  const char *address_range = "<invalid>";   // For debug purposes
 
   // Start and end of the handled address range
   //   - 'hi' (i.e. the end of the range) is inclusive

@@ -188,6 +188,7 @@ int main(int argc, char *argv[])
     .init(&window);
 
   test_cpu();
+  return 0;
 
   GLXContext gl_context;
 
