@@ -35,7 +35,18 @@ public:
 
   auto deviceAddressSpace(IBusDevice *device) -> IAddressSpace *;
 
+  template <size_t AddressWidth>
+  auto deviceAddressSpace(IBusDevice *device) -> AddressSpace<AddressWidth> *
+  {
+    return (AddressSpace<AddressWidth> *)deviceAddressSpace(device);
+  }
+
 private:
+  // Can be called ONLY when devices_.find(device) == devices_.end()
+  //   i.e. when a given device HASN'T been previously registered
+  //   with the SystemBus
+  auto createAddressSpace(IBusDevice *device) -> IAddressSpace *;
+
   AddressSpaceFactory addrspace_factory_;
 
   std::unordered_map<IBusDevice *, std::shared_ptr<IAddressSpace>> devices_;
@@ -46,7 +57,7 @@ class Bus {
 public:
   using Address = typename AddressSpace<AddressWidth>::Address;
 
-  Bus(SystemBus *sys_bus, IBusDevice *device);
+  static auto for_device(SystemBus *sys_bus, IBusDevice *device) -> Bus *;
 
   auto readByte(Address addr) -> u8;
   auto readWord(Address addr) -> u16;
@@ -55,6 +66,8 @@ public:
   auto writeWord(Address addr, u16 data) -> void;
 
 private:
+  Bus(SystemBus *sys_bus, IBusDevice *device);
+
   SystemBus *sys_bus_ = nullptr;
 
   AddressSpace<AddressWidth> *addr_space_ = nullptr;

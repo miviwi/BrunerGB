@@ -72,11 +72,6 @@ auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_
 
 class TestCPU : public lr35902::Processor {
 public:
-  auto connect(SystemBus *sys_bus) -> void
-  {
-    bus_ = new Bus<16>(sys_bus, this);
-  }
-
   virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
   {
     auto map = bus->createMap(this);
@@ -89,8 +84,6 @@ public:
   virtual auto detach(DeviceMemoryMap *map) -> void final
   {
   }
-
-  auto bus() -> Bus<16>& { return *bus_; }
 };
 
 class TestRAM : public IBusDevice {
@@ -165,7 +158,7 @@ public:
    auto cpu_bus = cpu->bus();
 
    cpu_bus.writeByte(0x0000, 0x12);
-   cpu_bus.writeByte(0x0001, 0x34);
+   cpu_bus.writeByte(0x4001, 0x34);
 
    printf("cpu_bus@0x0000 = 0x%.2x\n",  (unsigned)cpu_bus.readByte(0x0000));
    printf("cpu_bus@0x0001 = 0x%.2x\n",  (unsigned)cpu_bus.readByte(0x0001));

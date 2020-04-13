@@ -25,30 +25,13 @@ auto SystemBus::addressSpaceFactory(AddressSpaceFactory factory) -> SystemBus&
 
 auto SystemBus::createMap(IBusDevice *device) -> DeviceMemoryMap *
 {
-  auto it = devices_.find(device);
-  if(it == devices_.end()) {     // First time createMap() was called for this device
-    // Allocate a new clean AddressSpace...
-    auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory());
-
-    //  ...and place it in the map
-    auto [inserted_it, inserted] = devices_.insert(
-        { device, device_addrspace }
-    );
-
-    assert(inserted);
-
-    it = inserted_it;
-  }
-
-  assert(it != devices_.end());
-
-  IAddressSpace& addrspace = *it->second;
+  IAddressSpace *addrspace = deviceAddressSpace(device);
 
   // Allocate a clean DeviceMemoryMap...
   auto device_memmap = new DeviceMemoryMap();
 
   //  ...and map it into device's address space
-  auto device_memmap_ptr = addrspace.mapDevice(device_memmap);
+  auto device_memmap_ptr = addrspace->mapDevice(device_memmap);
 
   return device_memmap_ptr.get();
 }
@@ -56,19 +39,20 @@ auto SystemBus::createMap(IBusDevice *device) -> DeviceMemoryMap *
 auto SystemBus::deviceAddressSpace(IBusDevice *device) -> IAddressSpace *
 {
   auto it = devices_.find(device);
-  if(it == devices_.end()) {                  // 'device' hasn't been registered
-        // Allocate a new clean AddressSpace...
-    auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory());
+  if(it == devices_.end()) return createAddressSpace(device);
 
-    //  ...and place it in the map
-    auto [inserted_it, inserted] = devices_.insert(
-        { device, device_addrspace }
-    );
+  // 'device' has been registered previously
+  return it->second.get();
+}
 
-    assert(inserted);
+auto SystemBus::createAddressSpace(IBusDevice *device) -> IAddressSpace *
+{
+  // Allocate a clean AddressSpace...
+  auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory());
 
-    it = inserted_it;
-  }
+  //  ...and place it in the map
+  auto [it, inserted] = devices_.emplace(device, device_addrspace);
+  assert(inserted && "SystemBus::createAddressSpace() called twice!");
 
   return it->second.get();
 }
@@ -77,7 +61,13 @@ template <size_t AddressWidth>
 Bus<AddressWidth>::Bus(SystemBus *sys_bus, IBusDevice *device) :
   sys_bus_(sys_bus)
 {
-  addr_space_ = (AddressSpace<AddressWidth> *)sys_bus->deviceAddressSpace(device);
+  addr_space_ = sys_bus->deviceAddressSpace<AddressWidth>(device);
+}
+
+template <size_t AddressWidth>
+auto Bus<AddressWidth>::for_device(SystemBus *sys_bus, IBusDevice *device) -> Bus *
+{
+  return new Bus(sys_bus, device);
 }
 
 template <size_t AddressWidth>

@@ -47,6 +47,11 @@ public:
   auto mask(Address m) -> BusTransactionHandler& { return setMask(m); }
   auto base(Address b) -> BusTransactionHandler& { return setBase(b); }
 
+  auto maskAndOffsetAddress(Address addr) const -> Address
+  {
+    return (addr & mask_) - base_;
+  }
+
 protected:
   BusTransactionHandler() = default;  // Declared as protected to force
                                       //   BusTransactionHandler to be
@@ -83,6 +88,9 @@ public:
 
   BusReadHandler() = default;
 
+  auto mask() const -> Address { return mask_; }
+  auto base() const -> Address { return base_; }
+
   auto mask(Address m) -> BusReadHandler& { return setMask<BusReadHandler>(m); }
   auto base(Address b) -> BusReadHandler& { return setBase<BusReadHandler>(b); }
 
@@ -114,6 +122,9 @@ public:
   using WordHandler = std::function<void(Address, u16 /* data */)>;
 
   BusWriteHandler() = default;
+
+  auto mask() const -> Address { return mask_; }
+  auto base() const -> Address { return base_; }
 
   auto mask(Address m) -> BusWriteHandler& { return setMask<BusWriteHandler>(m); }
   auto base(Address b) -> BusWriteHandler& { return setBase<BusWriteHandler>(b); }

@@ -5,7 +5,6 @@
 
 namespace brgb {
 
-// TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::mapDevice(
     DeviceMemoryMap *device_memmap
@@ -14,7 +13,6 @@ auto AddressSpace<AddressWidth>::mapDevice(
   return devices_.emplace_back(device_memmap);
 }
 
-// TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
 {
@@ -24,7 +22,7 @@ auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
 
     const auto& read_byte = handler->readByte();
 
-    return read_byte(addr);
+    return read_byte(handler->maskAndOffsetAddress(addr));
   }
 
   // TODO: open-bus behaviour for unmapped addresses?
@@ -33,7 +31,6 @@ auto AddressSpace<AddressWidth>::readByte(Address addr) -> u8
   return 0;
 }
 
-// TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::readWord(Address addr) -> u16
 {
@@ -43,7 +40,7 @@ auto AddressSpace<AddressWidth>::readWord(Address addr) -> u16
 
     const auto& read_word = handler->readWord();
 
-    return read_word(addr);
+    return read_word(handler->maskAndOffsetAddress(addr));
   }
 
   // TODO: open-bus behaviour for unmapped addresses?
@@ -52,7 +49,6 @@ auto AddressSpace<AddressWidth>::readWord(Address addr) -> u16
   return 0;
 }
 
-// TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::writeByte(Address addr, u8 data) -> void
 {
@@ -62,12 +58,11 @@ auto AddressSpace<AddressWidth>::writeByte(Address addr, u8 data) -> void
 
     const auto& write_byte = handler->writeByte();
 
-    write_byte(addr, data);
+    write_byte(handler->maskAndOffsetAddress(addr), data);
     break;
   }
 }
 
-// TODO: stub!
 template <size_t AddressWidth>
 auto AddressSpace<AddressWidth>::writeWord(Address addr, u16 data) -> void
 {
@@ -77,7 +72,7 @@ auto AddressSpace<AddressWidth>::writeWord(Address addr, u16 data) -> void
 
     const auto& write_word = handler->writeWord();
 
-    write_word(addr, data);
+    write_word(handler->maskAndOffsetAddress(addr), data);
     break;
   }
 }
