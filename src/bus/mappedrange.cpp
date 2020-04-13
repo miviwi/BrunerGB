@@ -79,7 +79,7 @@ auto BusReadHandlerSet::from_address_range(const char *address_range) -> BusTran
 
   auto set = new BusReadHandlerSet();
 
-  each_range_part(address_range, [&](AddressRangePart range_part) {
+  each_range_part(address_range, [=](AddressRangePart range_part) {
     // Allocate a BusTransactionHandler for this AddressRangPart
     auto handler = new BusReadHandler();
 
@@ -125,7 +125,7 @@ auto BusWriteHandlerSet::from_address_range(const char *address_range) -> BusTra
 
   auto set = new BusWriteHandlerSet();
 
-  each_range_part(address_range, [&](AddressRangePart range_part) {
+  each_range_part(address_range, [=](AddressRangePart range_part) {
     // Allocate a BusTransactionHandler for this AddressRangPart
     auto handler = new BusWriteHandler();
 

@@ -142,14 +142,27 @@ public:
     auto& cpu_ram = *cpu->attach(bus.get(), ram.get());
 
     cpu_ram
-      .r("0x0000-0x1fff,0x2000-0x3fff", [this](BusTransactionHandlerSetRef& handler_set) {
+      .r("0x0000-0x1fff,0x4000-0x5fff", [this](BusTransactionHandlerSetRef& handler_set) {
           handler_set.get<BusReadHandlerSet>()
-            .fn(ram->readByteHandler());
+            .fn(ram->readByteHandler())
+            .mask(0x1fff);
       })
-      .w("0x0000-0x1fff,0x2000-0x3fff", [this](BusTransactionHandlerSetRef& handler_set) {
+      .w("0x0000-0x1fff,0x4000-0x5fff", [this](BusTransactionHandlerSetRef& handler_set) {
           handler_set.get<BusWriteHandlerSet>()
-            .fn(ram->writeByteHandler());
+            .fn(ram->writeByteHandler())
+            .mask(0x1fff);
       });
+
+   auto test_lookup = [&](u16 addr) {
+     printf("lookup(0x%.4x) -> %p\n", addr, cpu_ram.lookupR(addr));
+   };
+
+   test_lookup(0x0000);
+   test_lookup(0x100f);
+   test_lookup(0x1fff);
+   test_lookup(0x2000);
+   test_lookup(0x4000);
+   test_lookup(0x6000);
 
     return *this;
   }

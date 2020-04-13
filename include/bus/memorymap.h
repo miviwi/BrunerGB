@@ -54,6 +54,14 @@ public:
   auto lookupW(Address addr) const -> BusWriteHandler *;
 
 private:
+  auto straddlesR(Address addr) const -> bool;
+  auto straddlesW(Address addr) const -> bool;
+
+  struct {
+    Address lo = ~0ull;
+    Address hi = 0;
+  } read_abs_, write_abs_;
+
   std::vector<BusTransactionHandler::Ptr> read_, write_;
 };
 

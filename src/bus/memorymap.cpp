@@ -1,4 +1,7 @@
 #include <bus/memorymap.h>
+#include <bus/mappedrange.h>
+
+#include <algorithm>
 
 namespace brgb {
 
@@ -49,6 +52,10 @@ auto DeviceMemoryMap::r(
   set.get()
     .eachPtr([this](BusTransactionHandler::Ptr h) {
         read_.emplace_back(h);
+
+        // Update cummulative range for the DeviceMemoryMap
+        read_abs_.lo = std::min(read_abs_.lo, h->lo);
+        read_abs_.hi = std::max(read_abs_.hi, h->hi);
     });
 
   // Pass the BusThransactionHandlerSetRef to the caller so it can be setup
@@ -67,12 +74,54 @@ auto DeviceMemoryMap::w(
   set.get()
     .eachPtr([this](BusTransactionHandler::Ptr h) {
         write_.emplace_back(h);
+
+        // Update cummulative range for the DeviceMemoryMap
+        write_abs_.lo = std::min(write_abs_.lo, h->lo);
+        write_abs_.hi = std::max(write_abs_.hi, h->hi);
     });
 
   // Pass the BusThransactionHandlerSetRef to the caller so it can be setup
   setup_handler(set);
 
   return *this;
+}
+
+auto DeviceMemoryMap::lookupR(Address addr) const -> BusReadHandler *
+{
+  if(!straddlesR(addr)) return nullptr;      // Early-out
+
+  for(const auto& h : read_) {
+    if(h->hi < addr || h->lo > addr) continue;
+
+    return (BusReadHandler *)h.get();
+  }
+
+  // No handler registered for 'addr'
+  return nullptr;
+}
+
+auto DeviceMemoryMap::lookupW(Address addr) const -> BusWriteHandler *
+{
+  if(!straddlesW(addr)) return nullptr;      // Early-out
+
+  for(const auto& h : write_) {
+    if(h->hi < addr || h->lo > addr) continue;
+
+    return (BusWriteHandler *)h.get();
+  }
+
+  // No handler registered for 'addr'
+  return nullptr;
+}
+
+auto DeviceMemoryMap::straddlesR(Address addr) const -> bool
+{
+  return addr >= read_abs_.lo && addr <= read_abs_.hi;
+}
+
+auto DeviceMemoryMap::straddlesW(Address addr) const -> bool
+{
+  return addr >= write_abs_.lo && addr <= write_abs_.hi;
 }
 
 }
