@@ -32,6 +32,17 @@ inline auto hi_nibble_between(u8 op, u8 min, u8 max) -> bool
   return hi_nibble(op) >= min && hi_nibble(op) <= max;
 }
 
+template <typename... Args>
+inline auto lo_nibble_matches(u8 op, Args... args) -> bool
+{
+  return ((lo_nibble(op) == args) || ...);
+}
+
+inline auto lo_nibble_between(u8 op, u8 min, u8 max) -> bool
+{
+  return lo_nibble(op) >= min && lo_nibble(op) <= max;
+}
+
 auto Instruction::decode(u8 *ptr) -> u8 *
 {
   // Fetch the opcode
@@ -271,12 +282,406 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
 
 auto Instruction::decode0x80_0xB0(u8 *ptr) -> u8 *
 {
+  dispatchOnHiNibble(
+      std::make_pair((u8)0x80, [this,&ptr]() {
+        if(lo_nibble_between(op_, 0x00, 0x07)) {
+          op_mnem_ = op_add;
+        } else {
+          op_mnem_ = op_adc;
+        }
+      }),
+
+      std::make_pair((u8)0x90, [this,&ptr]() {
+        if(lo_nibble_between(op_, 0x00, 0x07)) {
+          op_mnem_ = op_sub;
+        } else {
+          op_mnem_ = op_sbc;
+        }
+      }),
+
+      std::make_pair((u8)0xA0, [this,&ptr]() {
+        if(lo_nibble_between(op_, 0x00, 0x07)) {
+          op_mnem_ = op_and;
+        } else {
+          op_mnem_ = op_xor;
+        }
+      }),
+
+      std::make_pair((u8)0xB0, [this,&ptr]() {
+        if(lo_nibble_between(op_, 0x00, 0x07)) {
+          op_mnem_ = op_or;
+        } else {
+          op_mnem_ = op_cp;
+        }
+      })
+  );
+
   return ptr;
 }
 
 auto Instruction::decode0xC0_0xF0(u8 *ptr) -> u8 *
 {
-  assert(0 && "Instruction::decode0xC0_0xF0 stub!");
+  dispatchOnLoNibble(
+      std::make_pair((u8)0x00, [this,&ptr]() { dispatchOnHiNibble(
+          //  ret nz
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_ret;
+          }),
+          //  ret nc
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_ret;
+          }),
+
+          //  ld (0xFF00+<a8>), a
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+
+            // Fetch the load offset
+            operand_ = *ptr++;
+          }),
+          //  ld a, (0xFF00+<a8>)
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+
+            // Fetch the load offset
+            operand_ = *ptr++;
+          }));
+      }),
+
+      std::make_pair((u8)0x01, [this,&ptr]() {
+          op_mnem_ = op_pop;
+      }),
+
+      std::make_pair((u8)0x02, [this,&ptr]() { dispatchOnHiNibble(
+          //  jp nz, <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+
+            // Fetch the jump address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+          //  jp nc, <a16>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+
+            // Fetch the jump address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+          //  ld (0xFF00+c), a
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+          }),
+          //  ld a, (0xFF00+c)
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+          }));
+      }),
+
+      std::make_pair((u8)0x03, [this,&ptr]() { dispatchOnHiNibble(
+          //  jp <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+
+            // Fetch the jump address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+
+          //  di
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_di;
+          }));
+      }),
+
+      std::make_pair((u8)0x04, [this,&ptr]() { dispatchOnHiNibble(
+          //  call nz, <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_call;
+
+            // Fetch the call address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+          //  call nc, <a16>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_call;
+
+            // Fetch the call address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }));
+      }),
+
+      //  push bc
+      //  push de
+      //  push hl
+      //  push af
+      std::make_pair((u8)0x05, [this,&ptr]() {
+          op_mnem_ = op_push;
+      }),
+
+      std::make_pair((u8)0x06, [this,&ptr]() { dispatchOnHiNibble(
+          //  add a, <d8>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_add;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  sub <d8>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_sub;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  and <d8>
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_and;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  or <d8>
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_or;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }));
+      }),
+
+      //  rst 0x00
+      //  rst 0x10
+      //  rst 0x20
+      //  rst 0x30
+      std::make_pair((u8)0x07, [this,&ptr]() {
+        op_mnem_ = op_rst;
+      }),
+
+      std::make_pair((u8)0x08, [this,&ptr]() { dispatchOnHiNibble(
+          //  ret z
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_ret;
+          }),
+          //  ret c
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_ret;
+          }),
+
+          //  add sp, <r8>
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_add;
+
+            // Fetch immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  ld hl, sp+<r8>
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+
+            // Fetch immediate data
+            operand_ = *ptr++;
+          }));
+      }),
+
+      std::make_pair((u8)0x09, [this,&ptr]() { dispatchOnHiNibble(
+          //  ret
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_ret;
+          }),
+          //  reti
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_reti;
+          }),
+
+          //  jp (hl)
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+          }),
+
+          //  ld sp, hl
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+          }));
+      }),
+
+      std::make_pair((u8)0x0A, [this,&ptr]() { dispatchOnHiNibble(
+          //  jp z, <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+
+            // Fetch the jump address
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+          //  jp c, <a16>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_jp;
+
+            // Fetch the jump address
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+          //  add (<a16>), a 
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+
+            // Fetch load address
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+          //  ld a, (<a16>)
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ld;
+
+            // Fetch load address
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }));
+      }),
+
+      std::make_pair((u8)0x0B, [this,&ptr]() { dispatchOnHiNibble(
+          //  <cb prefix>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            assert(0 && "decode0xC0_0xF0() called with CB-prefixed instruction!");
+          }),
+
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+
+          //  ei
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_ei;
+          }));
+      }),
+
+      std::make_pair((u8)0x0C, [this,&ptr]() { dispatchOnHiNibble(
+          //  call z, <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_call;
+
+            // Fetch the call address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+          //  call c, <a16>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_call;
+
+            // Fetch the call address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }));
+      }),
+
+      std::make_pair((u8)0x0D, [this,&ptr]() { dispatchOnHiNibble(
+          //  call <a16>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_call;
+
+            // Fetch the call address
+            //   - Little-endian byte ordering
+            operand_lo_ = *ptr++;
+            operand_hi_ = *ptr++;
+          }),
+
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }),
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            throw Disassembler::IllegalOpcodeError(ptr-mem_-1, op_);
+          }));
+      }),
+
+      std::make_pair((u8)0x0E, [this,&ptr]() { dispatchOnHiNibble(
+          //  adc a, <d8>
+          std::make_pair((u8)0xC0, [this,&ptr]() {
+            op_mnem_ = op_adc;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  sbc <d8>
+          std::make_pair((u8)0xD0, [this,&ptr]() {
+            op_mnem_ = op_sbc;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  and <d8>
+          std::make_pair((u8)0xE0, [this,&ptr]() {
+            op_mnem_ = op_xor;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }),
+
+          //  or <d8>
+          std::make_pair((u8)0xF0, [this,&ptr]() {
+            op_mnem_ = op_cp;
+
+            // Fetch the immediate data
+            operand_ = *ptr++;
+          }));
+      }),
+
+      //  rst 0x08
+      //  rst 0x18
+      //  rst 0x28
+      //  rst 0x38
+      std::make_pair((u8)0x0F, [this,&ptr]() {
+        op_mnem_ = op_rst;
+      })
+  );
+
   return ptr;
 }
 
