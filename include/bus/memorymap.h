@@ -5,6 +5,7 @@
 #include <bus/mappedrange.h>
 
 #include <type_traits>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <functional>
@@ -58,7 +59,7 @@ private:
   auto straddlesW(Address addr) const -> bool;
 
   struct {
-    Address lo = ~0ull;
+    Address lo = std::numeric_limits<Address>::max();
     Address hi = 0;
   } read_abs_, write_abs_;
 

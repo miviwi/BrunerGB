@@ -34,7 +34,7 @@ auto parse_address_range_part(const std::string& range) -> AddressRangePart
   auto matches = std::smatch();
   auto was_matched = std::regex_match(range, matches, re_address_range_part);
 
-  assert(was_matched);
+  assert(was_matched && matches.size() == 3);   // Sanity check
 
   // Convert the matched strings into integers
   result.lo = std::stoull(matches[1].str(), nullptr, 16);

@@ -3,6 +3,9 @@ set (SrcDir ${PROJECT_SOURCE_DIR}/src)
 target_sources (BrunerGB PRIVATE
   ${SrcDir}/brgb.cpp
 
+  # Utility function sources
+  ${SrcDir}/util/format.cpp
+
   # Window specific sources
   ${SrcDir}/window/window.cpp
   ${SrcDir}/window/event.cpp
@@ -45,6 +48,7 @@ target_sources (BrunerGB PRIVATE
   #   LR35902
   ${SrcDir}/device/lr35902/cpu.cpp
   ${SrcDir}/device/lr35902/registers.cpp
+  ${SrcDir}/device/lr35902/disassembler.cpp
 
   # System/Gameboy sources
   ${SrcDir}/system/gb.cpp

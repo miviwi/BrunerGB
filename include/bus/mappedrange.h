@@ -3,6 +3,7 @@
 #include <types.h>
 
 #include <type_traits>
+#include <limits>
 #include <utility>
 #include <memory>
 #include <stdexcept>
@@ -73,8 +74,8 @@ protected:
     return *(Self *)this;
   }
 
-  Address mask_ = (Address)~0ull; // Must be applied to addresses before
-                                  //   passing them into a handler
+  Address mask_ = std::numeric_limits<Address>::max(); // Must be applied to addresses before
+                                                       //   passing them into a handler
 
   Address base_ = (Address)0x0; // Must be subtracted from addresses
                                 //   after applying the mask before
