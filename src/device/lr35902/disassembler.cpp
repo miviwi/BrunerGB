@@ -21,6 +21,12 @@ static constexpr u8 OpcodeRRA  = 0x1F;
 static constexpr u8 OpcodeCPL  = 0x2F;
 static constexpr u8 OpcodeCCF  = 0x3F;
 
+static constexpr u8 OpcodeJP_Always          = 0xC3;
+static constexpr u8 OpcodeJP_Always_Indirect = 0xE9;
+static constexpr u8 OpcodeJR_Always          = 0x18;
+static constexpr u8 OpcodeCALL_Always        = 0xCD;
+static constexpr u8 OpcodeRET_Always         = 0xC9;
+
 inline auto lo_nibble(u8 op) -> u8 { return op & 0x0F; }
 inline auto hi_nibble(u8 op) -> u8 { return op & 0xF0; }
 
@@ -62,7 +68,7 @@ auto Instruction::decode(u8 *ptr) -> u8 *
 
   if(hi_nibble_between(op, 0x00, 0x30)) {
     return decode0x00_0x30(ptr);
-  } else if(hi_nibble_between(op, 0x40, 0x80)) {
+  } else if(hi_nibble_between(op, 0x40, 0x70)) {
     if(op == OpcodeHALT) {  // The HALT opcode is mixed-in with the LDs
       op_mnem_ = op_halt;
     } else {
@@ -79,7 +85,28 @@ auto Instruction::decode(u8 *ptr) -> u8 *
 
 auto Instruction::numOperands() -> unsigned
 {
-  return ~0u;
+  u8 op = op_;
+
+  if(hi_nibble_between(op, 0x00, 0x30)) {
+    assert(0);
+    return ~0u;
+  } else if(hi_nibble_between(op, 0x40, 0x80)) {
+    if(op == OpcodeHALT) return 0;  // The HALT opcode is mixed-in with the LDs
+
+    return 2;
+  } else if(hi_nibble_between(op, 0x80, 0xB0)) {
+    if(op_mnem_ == op_add || op_mnem_ == op_adc || op_sbc) {
+      return 2;     // For these instructions the accumulator ('A' register)
+    }               //   is listed as an operand instead of being implied
+
+    return 1;   // Accumulator is implied
+  } else if(hi_nibble_between(op, 0xC0, 0xF0)) {
+    assert(0);
+    return ~0u;
+  }
+
+  assert(0);
+  return ~0u;   // Unreachable
 }
 
 auto Instruction::operandType(unsigned which) -> OperandType
@@ -92,6 +119,40 @@ auto Instruction::operandType(unsigned which) -> OperandType
 auto Instruction::reg(unsigned which) -> OperandReg
 {
   assert(which < 2 && "Instruction::reg() called with out-of-range 'which'!");
+
+  static const OperandReg idx_to_reg8[] = {
+    RegB, RegC, RegD, RegE, RegH, RegL, RegInvalid /* (HL) */, RegA,
+  };
+
+  // - Needs special case for PUSH/POP instructions
+  //   for which SP -> AF
+  static const OperandReg idx_to_reg16[] = {
+    RegBC, RegDE, RegHL, RegSP,
+  };
+
+  u8 op = op_;
+
+  if(hi_nibble_between(op, 0x40, 0x70)) {   // LD <reg>, <reg>
+    if(op_mnem_ == op_halt) return RegInvalid;    // HALT doesn't have any operands
+
+    u8 src_idx = op & 0b0000'0111;
+    u8 dst_idx = (op & 0b0011'1000) >> 3;
+
+    // Ignore instructctions of the form
+    //     ld (hl), <reg>
+    //     ld <reg>, (hl)
+    if(src_idx == 6 || dst_idx == 6) return RegInvalid;
+
+    switch(which) {
+    case 0: return idx_to_reg8[dst_idx];
+    case 1: return idx_to_reg8[src_idx];
+    }
+  } else if(hi_nibble_between(op, 0x80, 0xB0)) {
+    if(op_mnem_ == op_add || op_mnem_ == op_adc || op_sbc) {
+      // The accumulator is explicit in these instructions
+      if(which == 0) return RegA;
+    }
+  }
 
   return RegInvalid;
 }
@@ -118,12 +179,61 @@ auto Instruction::relOffset() -> i8
 
 auto Instruction::cond() -> OperandCondition
 {
-  return ConditionInvalid;
+  static const OperandCondition cc_to_condition[] = {
+    ConditionNZ, ConditionZ, ConditionNC, ConditionC,
+  };
+
+  u8 op = op_;
+
+  // Only JP,JR,CALL,RET opcodes have an OperandCondition operand
+  if(op_mnem_ != op_jp && op_mnem_ != op_jr && op_mnem_ != op_call && op_mnem_ != op_ret) {
+    return ConditionInvalid;
+  }
+
+  // Handle unconditional JP,JR,CALL,RET opcodes
+  if(op == OpcodeJP_Always || op == OpcodeJP_Always_Indirect || op == OpcodeJR_Always || 
+      op == OpcodeCALL_Always || op == OpcodeRET_Always) {
+    return ConditionInvalid;
+  }
+
+  /*
+    0x20 - 0010 0000  // nz
+    0xC0 - 1100 0000  // nz
+    0xC2 - 1100 0010  // nz
+    0xC4 - 1100 0100  // nz
+    0xCA - 1100 1010  //  z
+    0x28 - 0010 1000  //  z
+    0xC8 - 1100 1000  //  z
+    0xCC - 1100 1100  //  z
+    0x30 - 0011 0000  // nc
+    0xD0 - 1101 0000  // nc
+    0xD2 - 1101 0010  // nc
+    0xD4 - 1101 0100  // nc
+    0x38 - 0011 1000  //  c
+    0xD8 - 1101 1000  //  c
+    0xDA - 1101 1010  //  c
+    0xDC - 1101 1100  //  c
+  */
+
+  return cc_to_condition[op_.bit(3, 4)];
 }
 
 auto Instruction::RSTVector() -> u8
 {
-  return 0xFF;
+  if(op_mnem_ != op_rst) return RSTVectorInvalid;
+
+  /*
+    0xC7 - 1100 0111  // 00h
+    0xCF - 1100 1111  // 08h
+    0xD7 - 1101 0111  // 10h
+    0xDF - 1101 1111  // 18h
+    0xE7 - 1110 0111  // 20h
+    0xEF - 1110 1111  // 28h
+    0xF7 - 1111 0111  // 30h
+    0xFF - 1111 1111  // 38h
+  */
+
+  return op_.bit(3, 5).get() * 0x8;
 }
 
 auto Instruction::toStr() -> std::string

@@ -131,6 +131,32 @@ struct Natural {
     return *this;
   }
 
+  template <size_t NumBitsOther>
+  inline auto& operator==(const Natural<NumBitsOther>& other)
+  {
+    return data_ == other.data_;
+  }
+  template <size_t NumBitsOther>
+  inline auto& operator==(const Integer<NumBitsOther>& other)
+  {
+    return data_ == other.data_;
+  }
+
+  template <
+      typename T,
+      typename IsIntegral = std::enable_if_t<std::is_integral_v<T>>
+    >
+  inline auto operator==(const T& v) -> bool
+  {
+    return data_ == v;
+  }
+
+  template <typename T>
+  inline auto& operator!=(const T& v)
+  {
+    return !(*this == v);
+  }
+
   inline auto bit(int bit_index) -> BitRange<NumBits> { return { &data_, bit_index }; }
   inline auto bit(int bit_index) const -> const BitRange<NumBits> { return { &data_, bit_index }; }
 

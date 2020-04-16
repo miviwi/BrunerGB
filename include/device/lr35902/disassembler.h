@@ -87,6 +87,10 @@ public:
     ConditionZ, ConditionNZ,
   };
 
+  enum : u8 {
+    RSTVectorInvalid = 0xFF,
+  };
+
   static constexpr u8 CB_prefix = 0xCB;
 
   // 'mem' is a pointer to the base of the binary being diassembled

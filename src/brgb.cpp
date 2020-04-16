@@ -215,7 +215,6 @@ auto test_disasm() -> void
 
   next = instruction.decode(next);
   puts(instruction.toStr().data());
-
 }
 
 int main(int argc, char *argv[])
