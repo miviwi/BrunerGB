@@ -49,12 +49,68 @@ using Opcode = Natural<8>;
 
 class Instruction {
 public:
+  enum OperandType {
+    OperandInvalid,
+
+    OperandNone,
+    OperandImplied,   // Ex. the 'A' register in RLCA,
+                      //     carry flag in SCF/CCF,
+                      //     bit index in BIT,RES,SET CB-prefix opcodes
+    OperandRSTVector,
+    OperandCond,
+    OperandReg8, OperandReg16,
+    OperandImm8, OperandImm16,
+    OperandRelOffset8,
+    OperandAddress16,
+    OperandPtrHL, OperandPtr16,
+  };
+
+  enum OperandReg {
+    RegInvalid,
+
+    RegA, RegF,
+    RegB, RegC,
+    RegD, RegE,
+    RegH, RegL,
+
+    RegAF,
+    RegBC,
+    RegDE,
+    RegHL,
+
+    RegSP,
+  };
+
+  enum OperandCondition {
+    ConditionInvalid,
+    ConditionC, ConditionNC,
+    ConditionZ, ConditionNZ,
+  };
+
   static constexpr u8 CB_prefix = 0xCB;
+
+  // 'mem' is a pointer to the base of the binary being diassembled
+  Instruction(u8 *mem);
 
   // Populates the Instruction object with data at 'ptr'
   //   and returns 'ptr' advanced appropriately i.e. by
   //   the width of the opcode and it's operands (if any)
   auto decode(u8 *ptr) -> u8 *;
+
+  // Returns the number of operands for the Instruction's opcode
+  auto numOperands() -> unsigned;
+
+  auto operandType(unsigned which = 0) -> OperandType;
+
+  auto reg(unsigned which = 0) -> OperandReg;
+  auto imm8() -> u8;
+  auto imm16() -> u16;
+  auto address() -> u16;
+  auto relOffset() -> i8;
+  auto cond() -> OperandCondition;
+  auto RSTVector() -> u8;
+
+  auto toStr() -> std::string;
 
 private:
   auto decode0x00_0x30(u8 *ptr) -> u8 *;
@@ -93,6 +149,7 @@ private:
     (((op & 0xF0) == handlers.first && (handlers.second(), 0)), ...);
   }
 
+  // Base address of the binary being diassembled
   u8 *mem_ = nullptr;
 
   bool op_CB_prefixed_ = false;
@@ -134,10 +191,10 @@ public:
   auto singleStep() -> std::string;
 
   // Returns an opcode's mnemonic
-  static auto opcode_to_str(u8 op) -> std::string;
+  static auto op_mnem_to_str(OpcodeMnemonic op) -> std::string;
 
   // Returns the mnemonic for a CB-prefixed opcode
-  static auto opcode_0xCB_to_str(u8 op) -> std::string;
+  static auto op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string;
 
 private:
 

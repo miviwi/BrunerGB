@@ -1,8 +1,11 @@
 #include <device/lr35902/disassembler.h>
 
+#include <utility>
+#include <string>
+#include <unordered_map>
+
 #include <cassert>
 #include <cstddef>
-#include <utility>
 
 namespace brgb::lr35902 {
 
@@ -18,8 +21,8 @@ static constexpr u8 OpcodeRRA  = 0x1F;
 static constexpr u8 OpcodeCPL  = 0x2F;
 static constexpr u8 OpcodeCCF  = 0x3F;
 
-inline auto lo_nibble(u8 op) -> bool { return op & 0x0F; }
-inline auto hi_nibble(u8 op) -> bool { return op & 0xF0; }
+inline auto lo_nibble(u8 op) -> u8 { return op & 0x0F; }
+inline auto hi_nibble(u8 op) -> u8 { return op & 0xF0; }
 
 template <typename... Args>
 inline auto hi_nibble_matches(u8 op, Args... args) -> bool
@@ -41,6 +44,11 @@ inline auto lo_nibble_matches(u8 op, Args... args) -> bool
 inline auto lo_nibble_between(u8 op, u8 min, u8 max) -> bool
 {
   return lo_nibble(op) >= min && lo_nibble(op) <= max;
+}
+
+Instruction::Instruction(u8 *mem) :
+  mem_(mem)
+{
 }
 
 auto Instruction::decode(u8 *ptr) -> u8 *
@@ -67,6 +75,70 @@ auto Instruction::decode(u8 *ptr) -> u8 *
   }
 
   return ptr;
+}
+
+auto Instruction::numOperands() -> unsigned
+{
+  return ~0u;
+}
+
+auto Instruction::operandType(unsigned which) -> OperandType
+{
+  assert(which < 2 && "Instruction::operandType() called with out-of-range 'which'!");
+
+  return OperandInvalid;
+}
+
+auto Instruction::reg(unsigned which) -> OperandReg
+{
+  assert(which < 2 && "Instruction::reg() called with out-of-range 'which'!");
+
+  return RegInvalid;
+}
+
+auto Instruction::imm8() -> u8
+{
+  return operand_lo_.get();
+}
+
+auto Instruction::imm16() -> u16
+{
+  return operand_.get();
+}
+
+auto Instruction::address() -> u16
+{
+  return operand_.get();
+}
+
+auto Instruction::relOffset() -> i8
+{
+  return (i8)operand_lo_.get();
+}
+
+auto Instruction::cond() -> OperandCondition
+{
+  return ConditionInvalid;
+}
+
+auto Instruction::RSTVector() -> u8
+{
+  return 0xFF;
+}
+
+auto Instruction::toStr() -> std::string
+{
+  assert(mem_ && op_mnem_ != op_Invalid &&
+      "Instruction::toStr() can be called ONLY after decode() on that object!");
+
+  std::string opcode_mnem;
+  if(!op_CB_prefixed_) {
+    opcode_mnem = Disassembler::op_mnem_to_str(op_mnem_);
+  } else {
+    opcode_mnem = Disassembler::op_0xCB_mnem_to_str(op_mnem_);
+  }
+
+  return opcode_mnem;
 }
 
 auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
@@ -708,7 +780,9 @@ auto Disassembler::IllegalOperandError::format_error(
   ) -> std::string
 {
 #define FMT_BASE "illegal operand for opcode 0x%.2x@0x%.4x (%s) -> "
-#define FMT_ARGS (unsigned)op, (unsigned)offset, Disassembler::opcode_to_str(op).data(), operand
+#define FMT_ARGS (unsigned)op, (unsigned)offset,                                    \
+                  Disassembler::op_mnem_to_str((OpcodeMnemonic)op).data(), operand
+
   switch(op_size) {
   case OperandSize::Operand_u8:  return util::fmt(FMT_BASE "0x%.2x", FMT_ARGS);
   case OperandSize::Operand_u16: return util::fmt(FMT_BASE "0x%.4x", FMT_ARGS);
@@ -716,6 +790,7 @@ auto Disassembler::IllegalOperandError::format_error(
 
   assert(0);    // Unreachable
   return "";
+
 #undef FMT_BASE
 #undef FMT_ARGS
 }
@@ -740,14 +815,37 @@ auto Disassembler::singleStep() -> std::string
   return "";
 }
 
-auto Disassembler::opcode_to_str(u8 op) -> std::string
-{
-  
+static const std::unordered_map<OpcodeMnemonic, std::string> p_op_mnem_to_str = {
+  { op_Invalid, "<invalid>" },
 
-  return "<unknown>";
+  { op_nop, "nop" },
+  { op_stop, "stop" }, { op_halt, "halt" },
+  { op_jp, "jp" }, { op_jr, "jr" },
+  { op_ld, "ld" },
+  { op_inc, "inc" }, { op_dec, "dec" },
+  { op_rlca, "rlca" }, { op_rla, "rla" }, { op_rrca, "rrca" }, { op_rra, "rra" },
+  { op_daa, "daa" },
+  { op_cpl, "cpl" },
+  { op_scf, "scf" }, { op_ccf, "ccf" },
+  { op_add, "add" }, { op_adc, "adc" }, { op_sub, "sub" }, { op_sbc, "sbc" },
+  { op_and, "and" }, { op_or, "or" }, { op_xor, "xor" },
+  { op_cp, "cp" },
+  { op_call, "call" },
+  { op_ret, "ret" }, { op_reti, "reti" },
+  { op_push, "push" }, { op_pop, "pop" },
+  { op_ei, "ei" }, { op_di, "di" },
+  { op_rst, "rst" },
+};
+auto Disassembler::op_mnem_to_str(OpcodeMnemonic op) -> std::string
+{
+  auto it = p_op_mnem_to_str.find(op);
+
+  return it != p_op_mnem_to_str.end() ? it->second : "<unknown>";
 }
 
-auto Disassembler::opcode_0xCB_to_str(u8 op) -> std::string
+static const std::unordered_map<OpcodeMnemonic, std::string> p_op_0xCB_mnem_to_str = {
+};
+auto Disassembler::op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string
 {
   return "<unknown>";
 }

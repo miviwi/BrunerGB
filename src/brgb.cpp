@@ -30,6 +30,7 @@
 #include <osd/surface.h>
 #include <device/lr35902/cpu.h>
 #include <device/lr35902/registers.h>
+#include <device/lr35902/disassembler.h>
 #include <bus/bus.h>
 #include <bus/device.h>
 #include <bus/memorymap.h>
@@ -194,6 +195,29 @@ auto test_cpu() -> void
 
 }
 
+auto test_disasm() -> void
+{
+  u8 binary[] = {
+    0x00,                  // nop
+    0x41,                  // ld b, c
+    0xC3, 0xEF, 0xBE,      // jp $beef
+  };
+
+  lr35902::Instruction instruction(binary);
+
+  u8 *next = binary;
+
+  next = instruction.decode(next);
+  puts(instruction.toStr().data());
+
+  next = instruction.decode(next);
+  puts(instruction.toStr().data());
+
+  next = instruction.decode(next);
+  puts(instruction.toStr().data());
+
+}
+
 int main(int argc, char *argv[])
 {
   x11_init();
@@ -212,7 +236,8 @@ int main(int argc, char *argv[])
   event_loop
     .init(&window);
 
-  test_cpu();
+//  test_cpu();
+  test_disasm();
   return 0;
 
   GLXContext gl_context;
