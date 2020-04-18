@@ -24,7 +24,7 @@ enum OpcodeMnemonic : u8 {
   op_nop,
   op_stop, op_halt,
   op_jp, op_jr,
-  op_ld,
+  op_ld, op_ldh,
   op_inc, op_dec,
   op_rlca, op_rla, op_rrca, op_rra,
   op_daa,
@@ -64,6 +64,9 @@ public:
     OperandRelOffset8,
     OperandAddress16,
     OperandReg16Indirect, OperandPtr16,
+
+    // Used only with ldh
+    OperandLDHOffset8, OperandLDHRegC,
   };
 
   enum OperandReg {
@@ -160,7 +163,7 @@ private:
     //    the usage of &&, so the comma operator is used to coerce
     //    it into int (the 0 in the marked expession below)
     //                                  vvvvvvvvvvvvvvvvvvvv
-    (((op & 0x0F) == handlers.first && (handlers.second(), 0)), ...);
+    ( ((op & 0x0F) == handlers.first && (handlers.second(), 0)), ... );
   }
 
   template <typename... Fn>
@@ -168,7 +171,7 @@ private:
   {
     u8 op = op_;
 
-    (((op & 0xF0) == handlers.first && (handlers.second(), 0)), ...);
+    ( ((op & 0xF0) == handlers.first && (handlers.second(), 0)), ... );
   }
 
   // Base address of the binary being diassembled

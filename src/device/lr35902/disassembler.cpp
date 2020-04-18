@@ -28,6 +28,8 @@ static constexpr u8 OpcodeJR_Always          = 0x18;
 static constexpr u8 OpcodeCALL_Always        = 0xCD;
 static constexpr u8 OpcodeRET_Always         = 0xC9;
 
+static constexpr u8 OpcodeLD_Ptr16_A = 0xEA;
+static constexpr u8 OpcodeLD_A_Ptr16 = 0xFA;
 static constexpr u8 OpcodeADD_SP_Imm = 0xE8;
 static constexpr u8 OpcodeLDH_a8_A   = 0xE0;
 static constexpr u8 OpcodeLDH_A_a8   = 0xF0;
@@ -40,7 +42,7 @@ static const std::unordered_map<OpcodeMnemonic, std::string> p_op_mnem_to_str = 
   { op_nop, "nop" },
   { op_stop, "stop" }, { op_halt, "halt" },
   { op_jp, "jp" }, { op_jr, "jr" },
-  { op_ld, "ld" },
+  { op_ld, "ld" }, { op_ldh, "ldh" },
   { op_inc, "inc" }, { op_dec, "dec" },
   { op_rlca, "rlca" }, { op_rla, "rla" }, { op_rrca, "rrca" }, { op_rra, "rra" },
   { op_daa, "daa" },
@@ -202,7 +204,8 @@ auto Instruction::numOperands() -> unsigned
 
     return 2;
 
-  case op_ld: return 2;
+  case op_ld:
+  case op_ldh: return 2;
 
   case op_inc:
   case op_dec: return 1;
@@ -376,20 +379,20 @@ auto Instruction::operandType(unsigned which) -> OperandType
       }
 
       return OperandImm8;
-    } else if(op == 0xEA /* ld (<addr16>), a */) {
+    } else if(op == OpcodeLD_Ptr16_A /* ld (<addr16>), a */) {
       return which == 0 ? OperandPtr16 : OperandReg8;
-    } else if(op == 0xFA /* ld a, (<addr16>) */) {
+    } else if(op == OpcodeLD_A_Ptr16 /* ld a, (<addr16>) */) {
       return which == 0 ? OperandReg8 : OperandPtr16;
+    } else if(op == OpcodeLDH_a8_A) {
+      return which == 0 ? OperandLDHOffset8 : OperandReg8;
+    } else if(op == OpcodeLDH_A_a8) {
+      return which == 0 ? OperandReg8 : OperandLDHOffset8;
+    } else if(op == OpcodeLDH_CInd_A) {
+      return which == 0 ? OperandLDHRegC : OperandReg8;
+    } else if(op == OpcodeLDH_A_CInd) {
+      return which == 0 ? OperandReg8 : OperandLDHRegC;
     }
-  } else if(op == OpcodeLDH_a8_A) {
-    return which == 0 ? OperandImm8 : OperandReg8;
-  } else if(op == OpcodeLDH_A_a8) {
-    return which == 0 ? OperandReg8 : OperandImm8;
-  } else if(op == OpcodeLDH_CInd_A) {
-    return which == 0 ? OperandImm8 : OperandReg8;
-  } else if(op == OpcodeLDH_A_CInd) {
-    return which == 0 ? OperandReg8 : OperandImm8;
-  }
+  } 
 
   return OperandInvalid;
 }
@@ -889,16 +892,16 @@ auto Instruction::disassemble0xC0_0xF0(u8 *ptr) -> u8 *
             op_mnem_ = op_ret;
           }),
 
-          //  ld (0xFF00+<a8>), a
+          //  ld ($FF00+<a8>), a
           std::make_pair((u8)0xE0, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_ldh;
 
             // Fetch the load offset
             operand_ = *ptr++;
           }),
-          //  ld a, (0xFF00+<a8>)
+          //  ld a, ($FF00+<a8>)
           std::make_pair((u8)0xF0, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_ldh;
 
             // Fetch the load offset
             operand_ = *ptr++;
@@ -929,13 +932,13 @@ auto Instruction::disassemble0xC0_0xF0(u8 *ptr) -> u8 *
             operand_hi_ = *ptr++;
           }),
 
-          //  ld (0xFF00+c), a
+          //  ld ($FF00+c), a
           std::make_pair((u8)0xE0, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_ldh;
           }),
-          //  ld a, (0xFF00+c)
+          //  ld a, ($FF00+c)
           std::make_pair((u8)0xF0, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_ldh;
           }));
       }),
 
@@ -1347,6 +1350,14 @@ auto Instruction::operandsToStr() -> std::string
 
     case OperandPtr16:
       os << util::fmt("($%.4X)", address());
+      break;
+
+    case OperandLDHOffset8:
+      os << util::fmt("($%.4X)", 0xFF00+imm8());
+      break;
+
+    case OperandLDHRegC:
+      os << "($FF00+c)";
       break;
     }
   }
