@@ -59,7 +59,10 @@ auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_
   if(fd < 0) return std::nullopt;
 
   struct stat st;
-  if(fstat(fd, &st) < 0) return std::nullopt;
+  if(fstat(fd, &st) < 0) {
+    close(fd);
+    return std::nullopt;
+  }
 
   std::vector<uint8_t> font(st.st_size);
   if(read(fd, font.data(), font.size()) < 0) {
@@ -69,6 +72,27 @@ auto load_font(const std::string& file_name) -> std::optional<std::vector<uint8_
 
   close(fd);
   return std::move(font);
+}
+
+auto load_bootrom() -> std::optional<std::vector<uint8_t>>
+{
+  auto fd = open("./boot.rom", O_RDONLY);
+  if(fd < 0) return std::nullopt;
+
+  struct stat st;
+  if(fstat(fd, &st) < 0) {
+    close(fd);
+    return std::nullopt;
+  }
+
+  std::vector<uint8_t> bootrom(st.st_size);
+  if(read(fd, bootrom.data(), bootrom.size()) < 0) {
+    close(fd);
+    return std::nullopt;
+  }
+
+  close(fd);
+  return bootrom;
 }
 
 class TestCPU : public lr35902::Processor {
@@ -197,28 +221,15 @@ auto test_cpu() -> void
 
 auto test_disasm() -> void
 {
-  u8 binary[] = {
-    0x80,                  // add a, b
-    0x18, 0xFF,            // and b
-    0xD2, 0xEF, 0xBE,      // jp $beef
-  };
+  auto bootrom = load_bootrom();
 
-  auto reg_str = [](lr35902::Instruction::OperandReg reg) {
-    return lr35902::Instruction::OperandReg_to_str(reg);
-  };
+  lr35902::Disassembler disasm;
 
-  lr35902::Instruction instruction(binary);
+  disasm.begin(bootrom->data());
 
-  u8 *next = binary;
-
-  next = instruction.disassemble(next);
-  printf("%s\n", instruction.toStr().data());
-
-  next = instruction.disassemble(next);
-  printf("%s\n", instruction.toStr().data());
-
-  next = instruction.disassemble(next);
-  printf("%s\n", instruction.toStr().data());
+  for(int i = 0; i < 15; i++) {
+    printf(disasm.singleStep().data());
+  }
 }
 
 int main(int argc, char *argv[])

@@ -29,6 +29,10 @@ static constexpr u8 OpcodeCALL_Always        = 0xCD;
 static constexpr u8 OpcodeRET_Always         = 0xC9;
 
 static constexpr u8 OpcodeADD_SP_Imm = 0xE8;
+static constexpr u8 OpcodeLDH_a8_A   = 0xE0;
+static constexpr u8 OpcodeLDH_A_a8   = 0xF0;
+static constexpr u8 OpcodeLDH_CInd_A = 0xE2;
+static constexpr u8 OpcodeLDH_A_CInd = 0xF2;
 
 static const std::unordered_map<OpcodeMnemonic, std::string> p_op_mnem_to_str = {
   { op_Invalid, "<invalid>" },
@@ -312,6 +316,8 @@ auto Instruction::operandType(unsigned which) -> OperandType
       return which == 0 ? OperandReg16Indirect : OperandReg8;
     } else if(lo_nibble_matches(op, 0x0A)) {
       return which == 0 ? OperandReg8 : OperandReg16Indirect;
+    } else if(lo_nibble_matches(op, 0x06, 0x0E)) {
+      return which == 0 ? OperandReg8 : OperandImm8;
     }
   } else if(hi_nibble_between(op, 0x40, 0x70)) {
     //  ld <reg8>, <reg8>
@@ -375,6 +381,14 @@ auto Instruction::operandType(unsigned which) -> OperandType
     } else if(op == 0xFA /* ld a, (<addr16>) */) {
       return which == 0 ? OperandReg8 : OperandPtr16;
     }
+  } else if(op == OpcodeLDH_a8_A) {
+    return which == 0 ? OperandImm8 : OperandReg8;
+  } else if(op == OpcodeLDH_A_a8) {
+    return which == 0 ? OperandReg8 : OperandImm8;
+  } else if(op == OpcodeLDH_CInd_A) {
+    return which == 0 ? OperandImm8 : OperandReg8;
+  } else if(op == OpcodeLDH_A_CInd) {
+    return which == 0 ? OperandReg8 : OperandImm8;
   }
 
   return OperandInvalid;
@@ -415,7 +429,7 @@ auto Instruction::reg(unsigned which) -> OperandReg
         0x3E - 0011 1110   // ld a, <imm8>
       */
 
-      return idx_to_reg16[op_.bit(3, 5)];
+      return idx_to_reg8[op_.bit(3, 5)];
     } else if(lo_nibble_matches(op_, 0x01, 0x09) && which == 0) {   // ld <reg16>, <imm16>
       /*                                                            // add hl, <reg16>
         0x01 - 0000 0001   // ld bc, <imm16>
@@ -507,6 +521,14 @@ auto Instruction::reg(unsigned which) -> OperandReg
   } else if(op == 0xEA /* ld (<addr16>), a */) {
     if(which == 1) return RegA;
   } else if(op == 0xFA /* ld a, (<addr16>) */) {
+    if(which == 0) return RegA;
+  } else if(op == OpcodeLDH_a8_A) {
+    if(which == 1) return RegA;
+  } else if(op == OpcodeLDH_A_a8) {
+    if(which == 0) return RegA;
+  } else if(op == OpcodeLDH_CInd_A) {
+    if(which == 1) return RegA;
+  } else if(op == OpcodeLDH_A_CInd) {
     if(which == 0) return RegA;
   }
 
@@ -779,14 +801,14 @@ auto Instruction::disassemble0x00_0x30(u8 *ptr) -> u8 *
             // Fetch the jump displacement
             operand_ = *ptr++;
           }),
-          //  jr Z, <r8>
+          //  jr z, <r8>
           std::make_pair((u8)0x20, [this,&ptr]() {
             op_mnem_ = op_jr;
 
             // Fetch the jump displacement
             operand_ = *ptr++;
           }),
-          //  jr C, <r8>
+          //  jr c, <r8>
           std::make_pair((u8)0x30, [this,&ptr]() {
             op_mnem_ = op_jr;
 
@@ -1086,7 +1108,7 @@ auto Instruction::disassemble0xC0_0xF0(u8 *ptr) -> u8 *
             operand_hi_ = *ptr++;
           }),
 
-          //  add (<a16>), a 
+          //  ld (<a16>), a 
           std::make_pair((u8)0xE0, [this,&ptr]() {
             op_mnem_ = op_ld;
 
@@ -1183,7 +1205,7 @@ auto Instruction::disassemble0xC0_0xF0(u8 *ptr) -> u8 *
             operand_ = *ptr++;
           }),
 
-          //  sbc <d8>
+          //  sbc a, <d8>
           std::make_pair((u8)0xD0, [this,&ptr]() {
             op_mnem_ = op_sbc;
 
@@ -1296,7 +1318,7 @@ auto Instruction::operandsToStr() -> std::string
     case OperandImplied: return "";
 
     case OperandRSTVector:
-      os << util::fmt("%.2xh", RSTVector());
+      os << util::fmt("$%.2X", RSTVector());
       break;
 
     case OperandCond:
@@ -1311,20 +1333,20 @@ auto Instruction::operandsToStr() -> std::string
       break;
 
     case OperandImm8:
-      os << util::fmt("$%.2x", imm8());
+      os << util::fmt("$%.2X", imm8());
       break;
 
     case OperandImm16:
     case OperandAddress16:
-      os << util::fmt("$%.4x", imm16());
+      os << util::fmt("$%.4X", imm16());
       break;
 
     case OperandRelOffset8:
-      os << util::fmt("<$%.4x>", (intptr_t)offset_ + relOffset());
+      os << util::fmt("<$%.4X>", (intptr_t)offset_ + relOffset() + 2);
       break;
 
     case OperandPtr16:
-      os << util::fmt("($%.4x)", address());
+      os << util::fmt("($%.4X)", address());
       break;
     }
   }
@@ -1376,7 +1398,18 @@ auto Disassembler::begin(u8 *mem) -> Disassembler&
 
 auto Disassembler::singleStep() -> std::string
 {
-  return "";
+  Instruction instruction(mem_);
+
+  std::ostringstream out;
+
+  // Append the instruction's offset on the left
+  out << util::fmt("%.4X      ", cursor_ - mem_);
+
+  // Disassemble and append the instruction itself
+  cursor_ = instruction.disassemble(cursor_);
+  out << instruction.toStr() << "\n";
+
+  return out.str();
 }
 
 }
