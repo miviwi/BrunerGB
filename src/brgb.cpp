@@ -198,23 +198,27 @@ auto test_cpu() -> void
 auto test_disasm() -> void
 {
   u8 binary[] = {
-    0x00,                  // nop
-    0x41,                  // ld b, c
-    0xC3, 0xEF, 0xBE,      // jp $beef
+    0x80,                  // add a, b
+    0x18, 0xFF,            // and b
+    0xD2, 0xEF, 0xBE,      // jp $beef
+  };
+
+  auto reg_str = [](lr35902::Instruction::OperandReg reg) {
+    return lr35902::Instruction::OperandReg_to_str(reg);
   };
 
   lr35902::Instruction instruction(binary);
 
   u8 *next = binary;
 
-  next = instruction.decode(next);
-  puts(instruction.toStr().data());
+  next = instruction.disassemble(next);
+  printf("%s\n", instruction.toStr().data());
 
-  next = instruction.decode(next);
-  puts(instruction.toStr().data());
+  next = instruction.disassemble(next);
+  printf("%s\n", instruction.toStr().data());
 
-  next = instruction.decode(next);
-  puts(instruction.toStr().data());
+  next = instruction.disassemble(next);
+  printf("%s\n", instruction.toStr().data());
 }
 
 int main(int argc, char *argv[])

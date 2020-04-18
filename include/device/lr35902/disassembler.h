@@ -6,6 +6,7 @@
 #include <util/natural.h>
 #include <util/bit.h>
 
+#include <limits>
 #include <utility>
 #include <initializer_list>
 #include <stdexcept>
@@ -62,7 +63,7 @@ public:
     OperandImm8, OperandImm16,
     OperandRelOffset8,
     OperandAddress16,
-    OperandPtrHL, OperandPtr16,
+    OperandReg16Indirect, OperandPtr16,
   };
 
   enum OperandReg {
@@ -79,6 +80,11 @@ public:
     RegHL,
 
     RegSP,
+
+    // OperandReg16Indirect
+    RegBCInd, RegDEInd, RegHLInd,    // (bc), (de), (hl)
+    RegHLIInd,   // (hl+)
+    RegHLDInd,   // (hl-)
   };
 
   enum OperandCondition {
@@ -93,13 +99,21 @@ public:
 
   static constexpr u8 CB_prefix = 0xCB;
 
+  static auto OperandReg_to_str(OperandReg reg) -> std::string;
+  static auto OperandCondition_to_str(OperandCondition cond) -> std::string;
+
+  // Returns an opcode's mnemonic
+  static auto op_mnem_to_str(OpcodeMnemonic op) -> std::string;
+  // Returns the mnemonic for a CB-prefixed opcode
+  static auto op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string;
+
   // 'mem' is a pointer to the base of the binary being diassembled
   Instruction(u8 *mem);
 
   // Populates the Instruction object with data at 'ptr'
   //   and returns 'ptr' advanced appropriately i.e. by
   //   the width of the opcode and it's operands (if any)
-  auto decode(u8 *ptr) -> u8 *;
+  auto disassemble(u8 *ptr) -> u8 *;
 
   // Returns the number of operands for the Instruction's opcode
   auto numOperands() -> unsigned;
@@ -117,10 +131,14 @@ public:
   auto toStr() -> std::string;
 
 private:
-  auto decode0x00_0x30(u8 *ptr) -> u8 *;
-  auto decode0x80_0xB0(u8 *ptr) -> u8 *;
-  auto decode0xC0_0xF0(u8 *ptr) -> u8 *;
-  auto decodeCBPrefixed(u8 *ptr) -> u8 *;
+  auto disassemble0x00_0x30(u8 *ptr) -> u8 *;
+  auto disassemble0x80_0xB0(u8 *ptr) -> u8 *;
+  auto disassemble0xC0_0xF0(u8 *ptr) -> u8 *;
+  auto disassembleCBPrefixed(u8 *ptr) -> u8 *;
+
+  auto opcodeToStr() -> std::string;
+
+  auto operandsToStr() -> std::string;
 
   // 'op_' MUST have been assigned before calling this method!
   //
@@ -155,6 +173,8 @@ private:
 
   // Base address of the binary being diassembled
   u8 *mem_ = nullptr;
+  // Offset of this instruction in the binary
+  uintptr_t offset_ = std::numeric_limits<uintptr_t>::max();
 
   bool op_CB_prefixed_ = false;
   Opcode op_;
@@ -193,12 +213,6 @@ public:
 
   // Disassemble a single instruction and advance the internal cursor
   auto singleStep() -> std::string;
-
-  // Returns an opcode's mnemonic
-  static auto op_mnem_to_str(OpcodeMnemonic op) -> std::string;
-
-  // Returns the mnemonic for a CB-prefixed opcode
-  static auto op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string;
 
 private:
 

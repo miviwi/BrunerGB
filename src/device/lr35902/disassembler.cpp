@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <string>
+#include <sstream>
 #include <unordered_map>
 
 #include <cassert>
@@ -26,6 +27,37 @@ static constexpr u8 OpcodeJP_Always_Indirect = 0xE9;
 static constexpr u8 OpcodeJR_Always          = 0x18;
 static constexpr u8 OpcodeCALL_Always        = 0xCD;
 static constexpr u8 OpcodeRET_Always         = 0xC9;
+
+static constexpr u8 OpcodeADD_SP_Imm = 0xE8;
+
+static const std::unordered_map<OpcodeMnemonic, std::string> p_op_mnem_to_str = {
+  { op_Invalid, "<invalid>" },
+
+  { op_nop, "nop" },
+  { op_stop, "stop" }, { op_halt, "halt" },
+  { op_jp, "jp" }, { op_jr, "jr" },
+  { op_ld, "ld" },
+  { op_inc, "inc" }, { op_dec, "dec" },
+  { op_rlca, "rlca" }, { op_rla, "rla" }, { op_rrca, "rrca" }, { op_rra, "rra" },
+  { op_daa, "daa" },
+  { op_cpl, "cpl" },
+  { op_scf, "scf" }, { op_ccf, "ccf" },
+  { op_add, "add" }, { op_adc, "adc" }, { op_sub, "sub" }, { op_sbc, "sbc" },
+  { op_and, "and" }, { op_or, "or" }, { op_xor, "xor" },
+  { op_cp, "cp" },
+  { op_call, "call" },
+  { op_ret, "ret" }, { op_reti, "reti" },
+  { op_push, "push" }, { op_pop, "pop" },
+  { op_ei, "ei" }, { op_di, "di" },
+  { op_rst, "rst" },
+};
+
+static const std::unordered_map<OpcodeMnemonic, std::string> p_op_0xCB_mnem_to_str = {
+  { op_rlc, "rlc" }, { op_rl, "rl" }, { op_rrc, "rrc" }, { op_rr, "rr" },
+  { op_sla, "sla" }, { op_sra, "sra" }, { op_srl, "srl" },
+  { op_swap, "swap" },
+  { op_bit, "bit" }, { op_res, "res" }, { op_set, "set" },
+};
 
 inline auto lo_nibble(u8 op) -> u8 { return op & 0x0F; }
 inline auto hi_nibble(u8 op) -> u8 { return op & 0xF0; }
@@ -52,22 +84,82 @@ inline auto lo_nibble_between(u8 op, u8 min, u8 max) -> bool
   return lo_nibble(op) >= min && lo_nibble(op) <= max;
 }
 
+auto Instruction::OperandReg_to_str(OperandReg reg) -> std::string
+{
+  switch(reg) {
+  // <reg8>
+  case RegA: return "a";
+  case RegF: return "f";
+  case RegB: return "b";
+  case RegC: return "c";
+  case RegD: return "d";
+  case RegE: return "e";
+  case RegH: return "h";
+  case RegL: return "l";
+
+  // <reg16>
+  case RegAF: return "af";
+  case RegBC: return "bc";
+  case RegDE: return "de";
+  case RegHL: return "hl";
+  case RegSP: return "sp";
+
+  case RegBCInd: return "(bc)";
+  case RegDEInd: return "(de)";
+  case RegHLInd: return "(hl)";
+
+  case RegHLIInd: return "(hl+)";
+  case RegHLDInd: return "(hl-)";
+  }
+
+  return "<invalid>";
+}
+
+auto Instruction::OperandCondition_to_str(OperandCondition cond) -> std::string
+{
+  switch(cond) {
+  case ConditionC:  return "c";
+  case ConditionNC: return "nc";
+  case ConditionZ:  return "z";
+  case ConditionNZ: return "nz";
+  }
+
+  return "<invalid>";
+}
+
+auto Instruction::op_mnem_to_str(OpcodeMnemonic op) -> std::string
+{
+  auto it = p_op_mnem_to_str.find(op);
+
+  return it != p_op_mnem_to_str.end() ? it->second : "<unknown>";
+}
+
+auto Instruction::op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string
+{
+  auto it = p_op_0xCB_mnem_to_str.find(op);
+
+  return it != p_op_0xCB_mnem_to_str.end() ? it->second : "<unknown>";
+}
+
 Instruction::Instruction(u8 *mem) :
   mem_(mem)
 {
 }
 
-auto Instruction::decode(u8 *ptr) -> u8 *
+auto Instruction::disassemble(u8 *ptr) -> u8 *
 {
+  // Store the Instruction's offset
+  offset_ = ptr - mem_;
+
   // Fetch the opcode
   u8 op = *ptr++;
   op_ = op;
 
   // Delegate to alternate method for CB-prefixed opcodes
-  if(op == CB_prefix) return decodeCBPrefixed(ptr);
+  if(op == CB_prefix) return disassembleCBPrefixed(ptr);
 
   if(hi_nibble_between(op, 0x00, 0x30)) {
-    return decode0x00_0x30(ptr);
+    return disassemble0x00_0x30(ptr);
   } else if(hi_nibble_between(op, 0x40, 0x70)) {
     if(op == OpcodeHALT) {  // The HALT opcode is mixed-in with the LDs
       op_mnem_ = op_halt;
@@ -75,9 +167,9 @@ auto Instruction::decode(u8 *ptr) -> u8 *
       op_mnem_ = op_ld;
     }
   } else if(hi_nibble_between(op, 0x80, 0xB0)) {
-    return decode0x80_0xB0(ptr);
+    return disassemble0x80_0xB0(ptr);
   } else if(hi_nibble_between(op, 0xC0, 0xF0)) {
-    return decode0xC0_0xF0(ptr);
+    return disassemble0xC0_0xF0(ptr);
   }
 
   return ptr;
@@ -87,31 +179,203 @@ auto Instruction::numOperands() -> unsigned
 {
   u8 op = op_;
 
-  if(hi_nibble_between(op, 0x00, 0x30)) {
-    assert(0);
-    return ~0u;
-  } else if(hi_nibble_between(op, 0x40, 0x80)) {
-    if(op == OpcodeHALT) return 0;  // The HALT opcode is mixed-in with the LDs
+  switch(op_mnem_) {
+  case op_nop:  return 0;
+  case op_stop: return 1;   // Always 0
+  case op_halt: return 0;
+
+  case op_jp:
+  case op_jr:
+  case op_call:
+  case op_ret:
+  case op_reti:
+    // For these instructions the accumulator ('A' register)
+    //   is listed as an operand instead of being implied
+   if(op == OpcodeJP_Always || op == OpcodeJP_Always_Indirect || op == OpcodeJR_Always
+     || op == OpcodeCALL_Always || op == OpcodeRET_Always) {
+      return 1;
+    }
 
     return 2;
-  } else if(hi_nibble_between(op, 0x80, 0xB0)) {
-    if(op_mnem_ == op_add || op_mnem_ == op_adc || op_sbc) {
-      return 2;     // For these instructions the accumulator ('A' register)
-    }               //   is listed as an operand instead of being implied
 
-    return 1;   // Accumulator is implied
-  } else if(hi_nibble_between(op, 0xC0, 0xF0)) {
-    assert(0);
-    return ~0u;
+  case op_ld: return 2;
+
+  case op_inc:
+  case op_dec: return 1;
+
+  case op_rlca:
+  case op_rla:
+  case op_rrca:
+  case op_rra: return 0;   // operand is implied
+
+  case op_daa:
+  case op_cpl: return 0;
+
+  case op_scf:
+  case op_ccf: return 0;
+
+  case op_add:
+  case op_adc:
+  case op_sbc: return 2;   // the 'A' register operand is explicit
+
+  case op_sub:
+  case op_and:
+  case op_xor:
+  case op_or:
+  case op_cp: return 1;
+
+  case op_push:
+  case op_pop: return 1;
+
+  case op_ei:
+  case op_di: return 0;
+
+  case op_rst: return 1;
+
+  case op_rlc:
+  case op_rl:
+  case op_rrc:
+  case op_rr:
+  case op_sla:
+  case op_sra:
+  case op_srl: return 1;
+
+  case op_swap: return 1;
+
+  case op_bit:
+  case op_res:
+  case op_set: return 2;
   }
 
-  assert(0);
-  return ~0u;   // Unreachable
+  return ~0u;
 }
 
 auto Instruction::operandType(unsigned which) -> OperandType
 {
   assert(which < 2 && "Instruction::operandType() called with out-of-range 'which'!");
+
+  u8 op = op_;
+
+  switch(op_mnem_) {
+  case op_nop:
+  case op_halt: return OperandNone;
+
+  case op_stop: return OperandImm8;   // Always 0
+
+  case op_daa:
+  case op_cpl:
+  case op_scf:
+  case op_ccf:
+  case op_rlca:
+  case op_rla:
+  case op_rrca:
+  case op_rra:
+  case op_ei:
+  case op_di: return OperandImplied;
+
+  case op_push:
+  case op_pop: return OperandReg16;
+
+  case op_reti: return OperandImplied;
+
+  case op_rst: return OperandRSTVector;
+  }
+
+  if(op_mnem_ == op_jp || op_mnem_ == op_jr || op_mnem_ == op_call || op_mnem_ == op_ret) {
+    if(op == OpcodeJP_Always || op == OpcodeCALL_Always) {
+      return OperandAddress16;
+    } else if(op == OpcodeJR_Always) {
+      return OperandRelOffset8;
+    } else if(op == OpcodeRET_Always) {
+      return OperandImplied;
+    } else if(op == OpcodeJP_Always_Indirect) {
+      return OperandReg16Indirect;
+    }
+
+    switch(op_mnem_) {
+    case op_jr: return which == 0 ? OperandCond : OperandRelOffset8;
+
+    default:    return which == 0 ? OperandCond : OperandAddress16;
+    }
+  } else if(op_mnem_ == op_inc || op_mnem_ == op_dec) {
+    if(lo_nibble_matches(op, 0x04, 0x05, 0x0C, 0x0D)) {
+      if(hi_nibble_matches(op, 0x30)) return OperandReg16Indirect;   // inc/dec (hl)
+
+      return OperandReg8;
+    } else if(lo_nibble_matches(op, 0x03, 0x0B)) {
+      return OperandReg16;
+    }
+  } else if(hi_nibble_between(op, 0x00, 0x30)) {
+    if(lo_nibble_matches(op, 0x01)) {
+      return which == 0 ? OperandReg16 : OperandImm16;
+    } else if(lo_nibble_matches(op, 0x02)) {
+      return which == 0 ? OperandReg16Indirect : OperandReg8;
+    } else if(lo_nibble_matches(op, 0x0A)) {
+      return which == 0 ? OperandReg8 : OperandReg16Indirect;
+    }
+  } else if(hi_nibble_between(op, 0x40, 0x70)) {
+    //  ld <reg8>, <reg8>
+    //  ld (hl), <reg8>
+    //  ld <reg8>, (hl)
+
+    if(lo_nibble_matches(op, 0x06) || lo_nibble_matches(op, 0x0E)) {
+      switch(which) {
+      case 1: return OperandReg16Indirect;
+      }
+    } else if(hi_nibble_matches(op, 0x70) && lo_nibble_between(op, 0x00, 0x07)) {
+      switch(which) {
+      case 0: return OperandReg16Indirect;
+      }
+    } else if(lo_nibble_matches(op, 0x02)) {
+      return which == 0 ? OperandReg16Indirect : OperandReg8;
+    } else if(lo_nibble_matches(op, 0x0A)) {
+      return which == 0 ? OperandReg8 : OperandReg16Indirect;
+    } else if(lo_nibble_matches(op, 0x08)) {
+      return which == 0 ? OperandPtr16 : OperandReg16;
+    } else if(lo_nibble_matches(op, 0x09)) {
+      // add hl, <reg16>
+      return OperandReg16;
+    } 
+
+    return OperandReg8;
+  } else if(hi_nibble_between(op, 0x80, 0xB0)) {
+    //  add a, <reg8>/(hl)
+    //  adc a, <reg8>/(hl)
+    //  sub <reg8>/(hl)
+    //  sbc a, <reg8>/(hl)
+    //  and <reg8>/(hl)
+    //  xor <reg8>/(hl)
+    //  or <reg8>/(hl)
+    //  cp <reg8>/(hl)
+
+    if(lo_nibble_matches(op, 0x06, 0x0E)) {
+      if(op_mnem_ == op_add || op_mnem_ == op_adc || op_mnem_ == op_sbc) {
+        return which == 1 ? OperandReg16Indirect : OperandReg8;
+      }
+    }
+
+    return OperandReg8;
+  } else if(hi_nibble_between(op, 0xC0, 0xF0)) {
+    //   add a, <imm8>
+    //   adc a, <imm8>
+    //   sub <imm8>
+    //   sbc a, <imm8>
+    //   and <imm8>
+    //   xor <imm8>
+    //   or <imm8>
+    //   cp <imm8>
+    if(lo_nibble_matches(op, 0x06, 0x0E)) {
+      if(op_mnem_ == op_add || op_mnem_ == op_adc || op_mnem_ == op_sbc) {
+        return which == 0 ? OperandReg8 : OperandImm8;
+      }
+
+      return OperandImm8;
+    } else if(op == 0xEA /* ld (<addr16>), a */) {
+      return which == 0 ? OperandPtr16 : OperandReg8;
+    } else if(op == 0xFA /* ld a, (<addr16>) */) {
+      return which == 0 ? OperandReg8 : OperandPtr16;
+    }
+  }
 
   return OperandInvalid;
 }
@@ -121,37 +385,129 @@ auto Instruction::reg(unsigned which) -> OperandReg
   assert(which < 2 && "Instruction::reg() called with out-of-range 'which'!");
 
   static const OperandReg idx_to_reg8[] = {
-    RegB, RegC, RegD, RegE, RegH, RegL, RegInvalid /* (HL) */, RegA,
+    RegB, RegC, RegD, RegE, RegH, RegL, RegHLInd, RegA,
   };
 
-  // - Needs special case for PUSH/POP instructions
-  //   for which SP -> AF
   static const OperandReg idx_to_reg16[] = {
+    // inc <reg16>
+    // dec <reg16>
+    // ld <reg16>,<imm16>
+    // add hl,<reg16>
     RegBC, RegDE, RegHL, RegSP,
+
+    // push <reg16>
+    // pop <reg16>
+    RegBC, RegDE, RegHL, RegAF,
   };
 
   u8 op = op_;
 
-  if(hi_nibble_between(op, 0x40, 0x70)) {   // LD <reg>, <reg>
+  if(hi_nibble_between(op_, 0x00, 0x30)) {
+    if(lo_nibble_matches(op_, 0x06, 0x0E) && which == 0) {          // ld <reg8>, <imm8>
+      /*
+        0x06 - 0000 0110   // ld b, <imm8>
+        0x0E - 0000 1110   // ld c, <imm8>
+        0x16 - 0001 0110   // ld d, <imm8>
+        0x1E - 0001 1110   // ld e, <imm8>
+        0x26 - 0010 0110   // ld h, <imm8>
+        0x2E - 0010 1110   // ld l, <imm8>
+        0x36 - 0011 0110   // ld (hl), <imm8>
+        0x3E - 0011 1110   // ld a, <imm8>
+      */
+
+      return idx_to_reg16[op_.bit(3, 5)];
+    } else if(lo_nibble_matches(op_, 0x01, 0x09) && which == 0) {   // ld <reg16>, <imm16>
+      /*                                                            // add hl, <reg16>
+        0x01 - 0000 0001   // ld bc, <imm16>
+        0x11 - 0001 0001   // ld de, <imm16>
+        0x21 - 0010 0001   // ld hl, <imm16>
+        0x31 - 0011 0001   // ld sp, <imm16>
+      */
+
+      return idx_to_reg16[op_.bit(4, 5)];
+    } else if(lo_nibble_matches(op_, 0x02)) {                       // ld (bc), a
+      if(which == 1) return RegA;                                   // ld (de), a
+                                                                    // ld (hl+), a
+      // which == 0                                                 // ld (hl-), a
+      switch(op) {
+      case 0x02: return RegBCInd;
+      case 0x12: return RegDEInd;
+      case 0x22: return RegHLIInd;
+      case 0x32: return RegHLDInd;
+      }
+    } else if(lo_nibble_matches(op_, 0x0A)) {                       // ld a, (bc)
+      if(which == 0) return RegA;                                   // ld a, (de)
+                                                                    // ld a, (hl+)
+      // which == 1                                                 // ld a, (hl-)
+      switch(op) {
+      case 0x0A: return RegBCInd;
+      case 0x1A: return RegDEInd;
+      case 0x2A: return RegHLIInd;
+      case 0x3A: return RegHLDInd;
+      }
+    }
+  } else if(hi_nibble_between(op, 0x40, 0x70)) {     // ld <reg8>, <reg8>
     if(op_mnem_ == op_halt) return RegInvalid;    // HALT doesn't have any operands
 
-    u8 src_idx = op & 0b0000'0111;
-    u8 dst_idx = (op & 0b0011'1000) >> 3;
-
-    // Ignore instructctions of the form
-    //     ld (hl), <reg>
-    //     ld <reg>, (hl)
-    if(src_idx == 6 || dst_idx == 6) return RegInvalid;
+    u8 src_idx = op_.bit(0, 2);
+    u8 dst_idx = op_.bit(3, 5);
 
     switch(which) {
     case 0: return idx_to_reg8[dst_idx];
     case 1: return idx_to_reg8[src_idx];
     }
   } else if(hi_nibble_between(op, 0x80, 0xB0)) {
+    // The accumulator is explicit in these instructions...
     if(op_mnem_ == op_add || op_mnem_ == op_adc || op_sbc) {
-      // The accumulator is explicit in these instructions
       if(which == 0) return RegA;
+
+      // Unify codepaths (which == 1 here)
+      which = 0;
     }
+
+    // ...but for all of them the encoding is the same
+    return which == 0 ? idx_to_reg8[op_.bit(0, 2)] : RegInvalid;
+  } else if(op_mnem_ == op_inc || op_mnem_ == op_dec && which == 0) {
+    if(lo_nibble_matches(op_, 0x04, 0x05, 0x0C, 0x0D)) {    // inc/dec <reg8>
+      /*
+        0x04 - 0000 0100   // inc b
+        0x0C - 0000 1100   // inc c
+        0x14 - 0001 0100   // inc d
+        0x1C - 0001 1100   // inc e
+        0x24 - 0010 0100   // inc h
+        0x2C - 0010 1100   // inc l
+        0x34 - 0011 0100   // inc (hl)
+        0x3C - 0011 1100   // inc a
+      */
+
+      return idx_to_reg8[op_.bit(3, 5)];
+    } else if(lo_nibble_matches(op_, 0x03, 0x0B)) {         // inc/dec <reg16>
+      /*
+        0x03 - 0000 0011   // inc bc
+        0x13 - 0001 0011   // inc de
+        0x23 - 0010 0011   // inc hl
+        0x33 - 0011 0011   // inc sp
+      */
+
+      return idx_to_reg16[op_.bit(4, 5)];
+    }
+  } else if(op_mnem_ == op_push || op_mnem_ == op_pop && which == 0) {
+    /*
+      0xC1 - 1100 0001  // pop bc
+      0xD1 - 1101 0001  // pop de
+      0xE1 - 1110 0001  // pop hl
+      0xF1 - 1111 0001  // pop af
+      0xC5 - 1100 0101  // push bc
+      0xD5 - 1101 0101  // push de
+      0xE5 - 1110 0101  // push hl
+      0xF5 - 1111 0101  // push af
+    */
+
+    return idx_to_reg16[op_.bit(4, 5) + 4];
+  } else if(op == 0xEA /* ld (<addr16>), a */) {
+    if(which == 1) return RegA;
+  } else if(op == 0xFA /* ld a, (<addr16>) */) {
+    if(which == 0) return RegA;
   }
 
   return RegInvalid;
@@ -238,20 +594,17 @@ auto Instruction::RSTVector() -> u8
 
 auto Instruction::toStr() -> std::string
 {
-  assert(mem_ && op_mnem_ != op_Invalid &&
-      "Instruction::toStr() can be called ONLY after decode() on that object!");
+  auto op = opcodeToStr();
 
-  std::string opcode_mnem;
-  if(!op_CB_prefixed_) {
-    opcode_mnem = Disassembler::op_mnem_to_str(op_mnem_);
-  } else {
-    opcode_mnem = Disassembler::op_0xCB_mnem_to_str(op_mnem_);
-  }
+  // Right-pad the mnemonic with spaces to a width of 4
+  while(op.length() < 4) op += ' ';
 
-  return opcode_mnem;
+  auto operands = operandsToStr();
+
+  return util::fmt("%s %s", op.data(), operands.data());
 }
 
-auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
+auto Instruction::disassemble0x00_0x30(u8 *ptr) -> u8 *
 {
   dispatchOnLoNibble(
       std::make_pair((u8)0x00, [this,&ptr]() { dispatchOnHiNibble(
@@ -268,14 +621,14 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
           operand_ = *ptr++;
         }),
 
-        //  jr nz, r8
+        //  jr nz, <r8>
         std::make_pair((u8)0x20, [this,&ptr]() {
           op_mnem_ = op_jr;
 
           // Fetch the jump displacement
           operand_ = *ptr++;
         }),
-        //  jr nc, r8
+        //  jr nc, <r8>
         std::make_pair((u8)0x30, [this,&ptr]() {
           op_mnem_ = op_jr;
 
@@ -284,10 +637,10 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
         }));
       }),
 
-      //  ld bc, <d16>
-      //  ld de, <d16>
-      //  ld hl, <d16>
-      //  ld sp, <d16>
+      //  ld bc, <imm16>
+      //  ld de, <imm16>
+      //  ld hl, <imm16>
+      //  ld sp, <imm16>
       std::make_pair((u8)0x01, [this,&ptr]() {
         op_mnem_ = op_ld;
 
@@ -296,10 +649,10 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
         operand_lo_ = *ptr++;
         operand_hi_ = *ptr++;
       }),
-      //  ld (bc), A
-      //  ld (de), A
-      //  ld (hl+), A
-      //  ld (hl-), A
+      //  ld (bc), a
+      //  ld (de), a
+      //  ld (hl+), a
+      //  ld (hl-), a
       std::make_pair((u8)0x02, [this,&ptr]() {
         op_mnem_ = op_ld;
       }),
@@ -350,17 +703,17 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
         op_mnem_ = op_dec;
       }),
 
-      //  ld b, <d8>
-      //  ld d, <d8>
-      //  ld h, <d8>
-      //  ld (hl), <d8>
+      //  ld b, <imm8>
+      //  ld d, <imm8>
+      //  ld h, <imm8>
+      //  ld (hl), <imm8>
       std::make_pair((u8)0x06, [this,&ptr]() {
         op_mnem_ = op_ld;
       }),
-      //  ld c, <d8>
-      //  ld e, <d8>
-      //  ld l, <d8>
-      //  ld a, <d8>
+      //  ld c, <imm8>
+      //  ld e, <imm8>
+      //  ld l, <imm8>
+      //  ld a, <imm8>
       std::make_pair((u8)0x0E, [this,&ptr]() {
         op_mnem_ = op_ld;
       }),
@@ -409,7 +762,7 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
       }),
 
       std::make_pair((u8)0x08, [this,&ptr]() { dispatchOnHiNibble(
-          //  ld (<a16>), SP
+          //  ld (<addr16>), SP
           std::make_pair((u8)0x00, [this,&ptr]() {
             op_mnem_ = op_ld;
 
@@ -421,21 +774,21 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
 
           //  jr <r8>
           std::make_pair((u8)0x10, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_jr;
 
             // Fetch the jump displacement
             operand_ = *ptr++;
           }),
           //  jr Z, <r8>
           std::make_pair((u8)0x20, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_jr;
 
             // Fetch the jump displacement
             operand_ = *ptr++;
           }),
           //  jr C, <r8>
           std::make_pair((u8)0x30, [this,&ptr]() {
-            op_mnem_ = op_ld;
+            op_mnem_ = op_jr;
 
             // Fetch the jump displacement
             operand_ = *ptr++;
@@ -462,7 +815,7 @@ auto Instruction::decode0x00_0x30(u8 *ptr) -> u8 *
   return ptr;
 }
 
-auto Instruction::decode0x80_0xB0(u8 *ptr) -> u8 *
+auto Instruction::disassemble0x80_0xB0(u8 *ptr) -> u8 *
 {
   dispatchOnHiNibble(
       std::make_pair((u8)0x80, [this,&ptr]() {
@@ -501,7 +854,7 @@ auto Instruction::decode0x80_0xB0(u8 *ptr) -> u8 *
   return ptr;
 }
 
-auto Instruction::decode0xC0_0xF0(u8 *ptr) -> u8 *
+auto Instruction::disassemble0xC0_0xF0(u8 *ptr) -> u8 *
 {
   dispatchOnLoNibble(
       std::make_pair((u8)0x00, [this,&ptr]() { dispatchOnHiNibble(
@@ -867,7 +1220,7 @@ auto Instruction::decode0xC0_0xF0(u8 *ptr) -> u8 *
   return ptr;
 }
 
-auto Instruction::decodeCBPrefixed(u8 *ptr) -> u8 *
+auto Instruction::disassembleCBPrefixed(u8 *ptr) -> u8 *
 {
   op_CB_prefixed_ = true;
 
@@ -875,7 +1228,108 @@ auto Instruction::decodeCBPrefixed(u8 *ptr) -> u8 *
   u8 op = *ptr++;
   op_ = op;
 
+  if(hi_nibble_between(op, 0x00, 0x30)) {
+    static const OpcodeMnemonic op_mnem[] = {
+      op_rlc, op_rrc,
+      op_rl, op_rr,
+      op_sla, op_sra,
+      op_swap, op_srl,
+    };
+
+    /*
+      0x07 - 0000 0111  // rlc a
+      0x0F - 0000 1111  // rrc a
+      0x17 - 0001 0111  // rl a
+      0x1F - 0001 1111  // rr a
+      0x27 - 0010 0111  // sla a
+      0x2F - 0010 1111  // sra a
+      0x37 - 0011 0111  // swap a
+      0x3F - 0011 1111  // srl a
+    */
+    op_mnem_ = op_mnem[op_.bit(3, 5)];
+  } else if(hi_nibble_between(op, 0x40, 0x70)) {    // bit <0-7>, <reg8>
+    op_mnem_ = op_bit;
+  } else if(hi_nibble_between(op, 0x80, 0xB0)) {    // res <0-7>, <reg8>
+    op_mnem_ = op_res;
+  } else {                                          // set <0-7>, <reg8>
+    op_mnem_ = op_set;
+  }
+
   return ptr;
+}
+
+auto Instruction::opcodeToStr() -> std::string
+{
+  assert(mem_ && op_mnem_ != op_Invalid &&
+      "Instruction::toStr() can be called ONLY after decode() on that object!");
+
+  std::string opcode_mnem;
+  if(!op_CB_prefixed_) {
+    opcode_mnem = op_mnem_to_str(op_mnem_);
+  } else {
+    opcode_mnem = op_0xCB_mnem_to_str(op_mnem_);
+  }
+
+  return opcode_mnem;
+}
+
+auto Instruction::operandsToStr() -> std::string
+{
+  assert(mem_ && op_mnem_ != op_Invalid &&
+      "Instruction::operandsToStr() can be called ONLY after Instruction::disassemble()!");
+
+  unsigned num_operands = numOperands();
+  if(!num_operands) return "";     // Instruction has no operands
+
+  std::ostringstream os;
+
+  for(auto i = 0; i < num_operands; i++) {
+    auto type = operandType(i);
+
+    // Comma between operands
+    if(i > 0) os << ", ";
+
+    switch(type) {
+    case OperandInvalid: assert(0);   // Unreachable
+
+    case OperandNone:
+    case OperandImplied: return "";
+
+    case OperandRSTVector:
+      os << util::fmt("%.2xh", RSTVector());
+      break;
+
+    case OperandCond:
+      os << OperandCondition_to_str(cond());
+      break;
+
+    case OperandReg8:
+    case OperandReg16:
+
+    case OperandReg16Indirect:
+      os << OperandReg_to_str(reg(i));
+      break;
+
+    case OperandImm8:
+      os << util::fmt("$%.2x", imm8());
+      break;
+
+    case OperandImm16:
+    case OperandAddress16:
+      os << util::fmt("$%.4x", imm16());
+      break;
+
+    case OperandRelOffset8:
+      os << util::fmt("<$%.4x>", (intptr_t)offset_ + relOffset());
+      break;
+
+    case OperandPtr16:
+      os << util::fmt("($%.4x)", address());
+      break;
+    }
+  }
+
+  return os.str();
 }
 
 Disassembler::IllegalOpcodeError::IllegalOpcodeError(
@@ -891,7 +1345,7 @@ auto Disassembler::IllegalOperandError::format_error(
 {
 #define FMT_BASE "illegal operand for opcode 0x%.2x@0x%.4x (%s) -> "
 #define FMT_ARGS (unsigned)op, (unsigned)offset,                                    \
-                  Disassembler::op_mnem_to_str((OpcodeMnemonic)op).data(), operand
+                  Instruction::op_mnem_to_str((OpcodeMnemonic)op).data(), operand
 
   switch(op_size) {
   case OperandSize::Operand_u8:  return util::fmt(FMT_BASE "0x%.2x", FMT_ARGS);
@@ -923,41 +1377,6 @@ auto Disassembler::begin(u8 *mem) -> Disassembler&
 auto Disassembler::singleStep() -> std::string
 {
   return "";
-}
-
-static const std::unordered_map<OpcodeMnemonic, std::string> p_op_mnem_to_str = {
-  { op_Invalid, "<invalid>" },
-
-  { op_nop, "nop" },
-  { op_stop, "stop" }, { op_halt, "halt" },
-  { op_jp, "jp" }, { op_jr, "jr" },
-  { op_ld, "ld" },
-  { op_inc, "inc" }, { op_dec, "dec" },
-  { op_rlca, "rlca" }, { op_rla, "rla" }, { op_rrca, "rrca" }, { op_rra, "rra" },
-  { op_daa, "daa" },
-  { op_cpl, "cpl" },
-  { op_scf, "scf" }, { op_ccf, "ccf" },
-  { op_add, "add" }, { op_adc, "adc" }, { op_sub, "sub" }, { op_sbc, "sbc" },
-  { op_and, "and" }, { op_or, "or" }, { op_xor, "xor" },
-  { op_cp, "cp" },
-  { op_call, "call" },
-  { op_ret, "ret" }, { op_reti, "reti" },
-  { op_push, "push" }, { op_pop, "pop" },
-  { op_ei, "ei" }, { op_di, "di" },
-  { op_rst, "rst" },
-};
-auto Disassembler::op_mnem_to_str(OpcodeMnemonic op) -> std::string
-{
-  auto it = p_op_mnem_to_str.find(op);
-
-  return it != p_op_mnem_to_str.end() ? it->second : "<unknown>";
-}
-
-static const std::unordered_map<OpcodeMnemonic, std::string> p_op_0xCB_mnem_to_str = {
-};
-auto Disassembler::op_0xCB_mnem_to_str(OpcodeMnemonic op) -> std::string
-{
-  return "<unknown>";
 }
 
 }
