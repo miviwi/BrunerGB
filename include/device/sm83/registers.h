@@ -4,7 +4,7 @@
 #include <util/integer.h>
 #include <util/bit.h>
 
-namespace brgb::lr35902 {
+namespace brgb::sm83 {
 
 class Registers {
 public:

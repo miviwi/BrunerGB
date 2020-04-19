@@ -7,7 +7,7 @@ namespace brgb {
 // Forward declarations
 class SystemBus;
 
-namespace lr35902 {
+namespace sm83 {
 class Processor;
 }
 
@@ -17,7 +17,7 @@ public:
 private:
   SystemBus *bus_;
 
-  lr35902::Processor *cpu_;
+  sm83::Processor *cpu_;
 };
 
 }

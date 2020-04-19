@@ -1,4 +1,4 @@
-#include <device/lr35902/disassembler.h>
+#include <device/sm83/disassembler.h>
 
 #include <utility>
 #include <string>
@@ -8,7 +8,7 @@
 #include <cassert>
 #include <cstddef>
 
-namespace brgb::lr35902 {
+namespace brgb::sm83 {
 
 static constexpr u8 OpcodeNOP  = 0x00;
 static constexpr u8 OpcodeSTOP = 0x10;

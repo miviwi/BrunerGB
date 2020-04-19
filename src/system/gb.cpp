@@ -2,7 +2,7 @@
 
 #include <bus/bus.h>
 #include <bus/memorymap.h>
-#include <device/lr35902/cpu.h>
+#include <device/sm83/cpu.h>
 
 namespace brgb {
 

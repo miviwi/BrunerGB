@@ -44,11 +44,16 @@ target_sources (BrunerGB PRIVATE
   ${SrcDir}/bus/memorymap.cpp
   ${SrcDir}/bus/mappedrange.cpp
 
+  # Scheduler sources
+  ${SrcDir}/sched/scheduler.cpp
+  ${SrcDir}/sched/device.cpp
+  ${SrcDir}/sched/thread.cpp
+
   # Device sources
-  #   LR35902
-  ${SrcDir}/device/lr35902/cpu.cpp
-  ${SrcDir}/device/lr35902/registers.cpp
-  ${SrcDir}/device/lr35902/disassembler.cpp
+  #   SM83
+  ${SrcDir}/device/sm83/cpu.cpp
+  ${SrcDir}/device/sm83/registers.cpp
+  ${SrcDir}/device/sm83/disassembler.cpp
 
   # System/Gameboy sources
   ${SrcDir}/system/gb.cpp

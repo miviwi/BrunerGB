@@ -3,11 +3,11 @@
 #include <bus/bus.h>
 #include <bus/device.h>
 
-#include <device/lr35902/registers.h>
+#include <device/sm83/registers.h>
 
 #include <memory>
 
-namespace brgb::lr35902 {
+namespace brgb::sm83 {
 
 class Processor : public IBusDevice {
 public:

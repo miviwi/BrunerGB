@@ -1,8 +1,8 @@
-#include <device/lr35902/cpu.h>
+#include <device/sm83/cpu.h>
 
 #include <bus/memorymap.h>
 
-namespace brgb::lr35902 {
+namespace brgb::sm83 {
 
 auto Processor::connect(SystemBus *sys_bus) -> void
 {

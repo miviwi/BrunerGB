@@ -28,9 +28,9 @@
 #include <osd/font.h>
 #include <osd/drawcall.h>
 #include <osd/surface.h>
-#include <device/lr35902/cpu.h>
-#include <device/lr35902/registers.h>
-#include <device/lr35902/disassembler.h>
+#include <device/sm83/cpu.h>
+#include <device/sm83/registers.h>
+#include <device/sm83/disassembler.h>
 #include <bus/bus.h>
 #include <bus/device.h>
 #include <bus/memorymap.h>
@@ -44,6 +44,8 @@
 #include <X11/keysymdef.h>
 
 #include <GL/gl3w.h>
+
+#include <libco/libco.h>
 
 #include <string>
 #include <vector>
@@ -95,7 +97,7 @@ auto load_bootrom() -> std::optional<std::vector<uint8_t>>
   return bootrom;
 }
 
-class TestCPU : public lr35902::Processor {
+class TestCPU : public sm83::Processor {
 public:
   virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
   {
@@ -223,7 +225,7 @@ auto test_disasm() -> void
 {
   auto bootrom = load_bootrom();
 
-  lr35902::Disassembler disasm;
+  sm83::Disassembler disasm;
 
   disasm.begin(bootrom->data());
 
@@ -232,8 +234,30 @@ auto test_disasm() -> void
   }
 }
 
+cothread_t next_thread;
+
+void co_test_thread()
+{
+  puts("co_test_thread() 1");
+  co_switch(next_thread);
+
+  puts("co_test_thread() 2");
+  co_switch(next_thread);
+}
+
 int main(int argc, char *argv[])
 {
+  next_thread = co_active();
+
+  auto htest_thread = co_create(1024*1024, co_test_thread);
+  co_switch(htest_thread);
+
+  puts("main()");
+
+  co_switch(htest_thread);
+  
+
+  return 0;
   x11_init();
 
   X11Window window;
