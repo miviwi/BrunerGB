@@ -288,6 +288,18 @@ auto Instruction::operandType(unsigned which) -> OperandType
   case op_rst: return OperandRSTVector;
   }
 
+  if(op_CB_prefixed_) {
+    if(hi_nibble_between(op, 0x40, 0xF0)) {
+      if(which == 0) return OperandBitIndex;
+
+      // which == 1
+      which = 0;
+    }
+
+    // Handle (hl) operand
+    return lo_nibble_matches(op, 0x06, 0x0E) ? OperandReg16Indirect : OperandReg8;
+  }
+
   if(op_mnem_ == op_jp || op_mnem_ == op_jr || op_mnem_ == op_call || op_mnem_ == op_ret) {
     if(op == OpcodeJP_Always || op == OpcodeCALL_Always) {
       return OperandAddress16;
@@ -379,9 +391,9 @@ auto Instruction::operandType(unsigned which) -> OperandType
       }
 
       return OperandImm8;
-    } else if(op == OpcodeLD_Ptr16_A /* ld (<addr16>), a */) {
+    } else if(op == OpcodeLD_Ptr16_A) {
       return which == 0 ? OperandPtr16 : OperandReg8;
-    } else if(op == OpcodeLD_A_Ptr16 /* ld a, (<addr16>) */) {
+    } else if(op == OpcodeLD_A_Ptr16) {
       return which == 0 ? OperandReg8 : OperandPtr16;
     } else if(op == OpcodeLDH_a8_A) {
       return which == 0 ? OperandLDHOffset8 : OperandReg8;
@@ -419,7 +431,59 @@ auto Instruction::reg(unsigned which) -> OperandReg
 
   u8 op = op_;
 
-  if(hi_nibble_between(op_, 0x00, 0x30)) {
+  // All 0xCB-prefixed instructions can be handled uniformly
+  if(op_CB_prefixed_) return idx_to_reg8[op_.bit(0, 2)];
+
+  if(op_mnem_ == op_inc || op_mnem_ == op_dec && which == 0) {
+    if(lo_nibble_matches(op_, 0x04, 0x05, 0x0C, 0x0D)) {    // inc/dec <reg8>
+      /*
+        0x04 - 0000 0100   // inc b
+        0x0C - 0000 1100   // inc c
+        0x14 - 0001 0100   // inc d
+        0x1C - 0001 1100   // inc e
+        0x24 - 0010 0100   // inc h
+        0x2C - 0010 1100   // inc l
+        0x34 - 0011 0100   // inc (hl)
+        0x3C - 0011 1100   // inc a
+      */
+
+      return idx_to_reg8[op_.bit(3, 5)];
+    } else if(lo_nibble_matches(op_, 0x03, 0x0B)) {         // inc/dec <reg16>
+      /*
+        0x03 - 0000 0011   // inc bc
+        0x13 - 0001 0011   // inc de
+        0x23 - 0010 0011   // inc hl
+        0x33 - 0011 0011   // inc sp
+      */
+
+      return idx_to_reg16[op_.bit(4, 5)];
+    }
+  } else if(op_mnem_ == op_push || op_mnem_ == op_pop && which == 0) {
+    /*
+      0xC1 - 1100 0001  // pop bc
+      0xD1 - 1101 0001  // pop de
+      0xE1 - 1110 0001  // pop hl
+      0xF1 - 1111 0001  // pop af
+      0xC5 - 1100 0101  // push bc
+      0xD5 - 1101 0101  // push de
+      0xE5 - 1110 0101  // push hl
+      0xF5 - 1111 0101  // push af
+    */
+
+    return idx_to_reg16[op_.bit(4, 5) + 4];
+  } else if(op == OpcodeLD_Ptr16_A) {
+    if(which == 1) return RegA;
+  } else if(op == OpcodeLD_A_Ptr16) {
+    if(which == 0) return RegA;
+  } else if(op == OpcodeLDH_a8_A) {
+    if(which == 1) return RegA;
+  } else if(op == OpcodeLDH_A_a8) {
+    if(which == 0) return RegA;
+  } else if(op == OpcodeLDH_CInd_A) {
+    if(which == 1) return RegA;
+  } else if(op == OpcodeLDH_A_CInd) {
+    if(which == 0) return RegA;
+  } else if(hi_nibble_between(op_, 0x00, 0x30)) {
     if(lo_nibble_matches(op_, 0x06, 0x0E) && which == 0) {          // ld <reg8>, <imm8>
       /*
         0x06 - 0000 0110   // ld b, <imm8>
@@ -484,55 +548,6 @@ auto Instruction::reg(unsigned which) -> OperandReg
 
     // ...but for all of them the encoding is the same
     return which == 0 ? idx_to_reg8[op_.bit(0, 2)] : RegInvalid;
-  } else if(op_mnem_ == op_inc || op_mnem_ == op_dec && which == 0) {
-    if(lo_nibble_matches(op_, 0x04, 0x05, 0x0C, 0x0D)) {    // inc/dec <reg8>
-      /*
-        0x04 - 0000 0100   // inc b
-        0x0C - 0000 1100   // inc c
-        0x14 - 0001 0100   // inc d
-        0x1C - 0001 1100   // inc e
-        0x24 - 0010 0100   // inc h
-        0x2C - 0010 1100   // inc l
-        0x34 - 0011 0100   // inc (hl)
-        0x3C - 0011 1100   // inc a
-      */
-
-      return idx_to_reg8[op_.bit(3, 5)];
-    } else if(lo_nibble_matches(op_, 0x03, 0x0B)) {         // inc/dec <reg16>
-      /*
-        0x03 - 0000 0011   // inc bc
-        0x13 - 0001 0011   // inc de
-        0x23 - 0010 0011   // inc hl
-        0x33 - 0011 0011   // inc sp
-      */
-
-      return idx_to_reg16[op_.bit(4, 5)];
-    }
-  } else if(op_mnem_ == op_push || op_mnem_ == op_pop && which == 0) {
-    /*
-      0xC1 - 1100 0001  // pop bc
-      0xD1 - 1101 0001  // pop de
-      0xE1 - 1110 0001  // pop hl
-      0xF1 - 1111 0001  // pop af
-      0xC5 - 1100 0101  // push bc
-      0xD5 - 1101 0101  // push de
-      0xE5 - 1110 0101  // push hl
-      0xF5 - 1111 0101  // push af
-    */
-
-    return idx_to_reg16[op_.bit(4, 5) + 4];
-  } else if(op == 0xEA /* ld (<addr16>), a */) {
-    if(which == 1) return RegA;
-  } else if(op == 0xFA /* ld a, (<addr16>) */) {
-    if(which == 0) return RegA;
-  } else if(op == OpcodeLDH_a8_A) {
-    if(which == 1) return RegA;
-  } else if(op == OpcodeLDH_A_a8) {
-    if(which == 0) return RegA;
-  } else if(op == OpcodeLDH_CInd_A) {
-    if(which == 1) return RegA;
-  } else if(op == OpcodeLDH_A_CInd) {
-    if(which == 0) return RegA;
   }
 
   return RegInvalid;
@@ -615,6 +630,23 @@ auto Instruction::RSTVector() -> u8
   */
 
   return op_.bit(3, 5).get() * 0x8;
+}
+
+auto Instruction::bitIndex() -> unsigned
+{
+  assert(op_CB_prefixed_ && "Instruction::bitIndex() called with non-CB prefixed instruction!");
+
+  /*
+    0x40 - 0100 0000   // bit 0, b
+    0x48 - 0100 1000   // bit 1, b
+    0x50 - 0101 0000   // bit 2, b
+    0x58 - 0101 1000   // bit 3, b
+    0x60 - 0110 0000   // bit 4, b
+    0x68 - 0110 1000   // bit 5, b
+    0x70 - 0111 0000   // bit 6, b
+    0x78 - 0111 1000   // bit 7, b
+  */
+  return op_.bit(3, 5).get();
 }
 
 auto Instruction::toStr() -> std::string
@@ -734,6 +766,9 @@ auto Instruction::disassemble0x00_0x30(u8 *ptr) -> u8 *
       //  ld (hl), <imm8>
       std::make_pair((u8)0x06, [this,&ptr]() {
         op_mnem_ = op_ld;
+
+        // Fetch the immediate data
+        operand_ = *ptr++;
       }),
       //  ld c, <imm8>
       //  ld e, <imm8>
@@ -741,6 +776,9 @@ auto Instruction::disassemble0x00_0x30(u8 *ptr) -> u8 *
       //  ld a, <imm8>
       std::make_pair((u8)0x0E, [this,&ptr]() {
         op_mnem_ = op_ld;
+
+        // Fetch the immediate data
+        operand_ = *ptr++;
       }),
 
       std::make_pair((u8)0x07, [this,&ptr]() { dispatchOnHiNibble(
@@ -1353,11 +1391,15 @@ auto Instruction::operandsToStr() -> std::string
       break;
 
     case OperandLDHOffset8:
-      os << util::fmt("($%.4X)", 0xFF00+imm8());
+      os << util::fmt("($FF00+$%.2X)", imm8());
       break;
 
     case OperandLDHRegC:
       os << "($FF00+c)";
+      break;
+
+    case OperandBitIndex:
+      os << util::fmt("%u", bitIndex());
       break;
     }
   }
@@ -1410,6 +1452,7 @@ auto Disassembler::begin(u8 *mem) -> Disassembler&
 auto Disassembler::singleStep() -> std::string
 {
   Instruction instruction(mem_);
+  u8 *current_instruction = cursor_;
 
   std::ostringstream out;
 
@@ -1418,7 +1461,20 @@ auto Disassembler::singleStep() -> std::string
 
   // Disassemble and append the instruction itself
   cursor_ = instruction.disassemble(cursor_);
-  out << instruction.toStr() << "\n";
+  out << instruction.toStr();
+
+  // Pad the output to 30 columns (or add a single space
+  //   in case it's width exceedes 30)
+  do { out << ' '; } while(out.tellp() < 30);
+
+  // Write the raw bytes that make up the instruction on the right
+  out << ';';
+  while(current_instruction < cursor_) {
+    out << util::fmt(" %.2X", *current_instruction);
+
+    current_instruction++;
+  }
+  out << '\n';
 
   return out.str();
 }

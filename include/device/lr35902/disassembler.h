@@ -67,6 +67,9 @@ public:
 
     // Used only with ldh
     OperandLDHOffset8, OperandLDHRegC,
+
+    // Used with 0xCB-prefixed instructions
+    OperandBitIndex,
   };
 
   enum OperandReg {
@@ -131,6 +134,9 @@ public:
   auto cond() -> OperandCondition;
   auto RSTVector() -> u8;
 
+  // For 0xCB-prefixed instructions
+  auto bitIndex() -> unsigned;
+
   auto toStr() -> std::string;
 
 private:
@@ -188,6 +194,12 @@ private:
   BitRange<16, 8, 15> operand_hi_{ operand_.ptr() };
 };
 
+// TODO:
+//   - Output non-instruction bytes in their raw form (using
+//     a 'db' directive) instead of throwing an exception
+//   - Scan the instruction stream in begin() for branch
+//     targets and output labels appropriately during
+//     actual disassembly
 class Disassembler {
 public:
   struct IllegalOpcodeError final : public std::runtime_error {
