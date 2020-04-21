@@ -1,4 +1,5 @@
 #include "util/bit.h"
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -34,6 +35,7 @@
 #include <bus/bus.h>
 #include <bus/device.h>
 #include <bus/memorymap.h>
+#include <sched/device.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -234,27 +236,14 @@ auto test_disasm() -> void
   }
 }
 
-cothread_t next_thread;
-
-void co_test_thread()
-{
-  puts("co_test_thread() 1");
-  co_switch(next_thread);
-
-  puts("co_test_thread() 2");
-  co_switch(next_thread);
-}
-
 int main(int argc, char *argv[])
 {
-  next_thread = co_active();
+  static constexpr double ntsc_colorburst = 315.0/88.0 * 1'000'000.0;
 
-  auto htest_thread = co_create(1024*1024, co_test_thread);
-  co_switch(htest_thread);
-
-  puts("main()");
-
-  co_switch(htest_thread);
+  printf("Second/ntsc_colorburst*6.0=%" PRIu64 "\n",
+      (u64)(brgb::ISchedDevice::Second / (ntsc_colorburst*6.0 + 0.5)));
+  printf("Second/ntsc_colorburst*12.0=%" PRIu64 "\n",
+      (u64)(brgb::ISchedDevice::Second / (ntsc_colorburst*12.0 + 0.5)));
   
 
   return 0;
