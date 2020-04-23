@@ -1,3 +1,4 @@
+#include "sched/scheduler.h"
 #include "util/bit.h"
 #include <cinttypes>
 #include <cstdio>
@@ -112,6 +113,27 @@ public:
 
   virtual auto detach(DeviceMemoryMap *map) -> void final
   {
+  }
+
+  virtual auto power() -> void
+  {
+    sm83::Processor::power();
+  }
+
+  virtual auto main() -> void
+  {
+    scheduler()->yield(ISchedDevice::Sync);
+  }
+
+protected:
+  virtual auto read(u16 addr) -> u8
+  {
+    return bus().readByte(addr);
+  }
+
+  virtual auto write(u16 addr, u8 data) -> void
+  {
+    bus().writeByte(addr, data);
   }
 };
 
@@ -238,15 +260,6 @@ auto test_disasm() -> void
 
 int main(int argc, char *argv[])
 {
-  static constexpr double ntsc_colorburst = 315.0/88.0 * 1'000'000.0;
-
-  printf("Second/ntsc_colorburst*6.0=%" PRIu64 "\n",
-      (u64)(brgb::ISchedDevice::Second / (ntsc_colorburst*6.0 + 0.5)));
-  printf("Second/ntsc_colorburst*12.0=%" PRIu64 "\n",
-      (u64)(brgb::ISchedDevice::Second / (ntsc_colorburst*12.0 + 0.5)));
-  
-
-  return 0;
   x11_init();
 
   X11Window window;
@@ -264,8 +277,8 @@ int main(int argc, char *argv[])
     .init(&window);
 
 //  test_cpu();
-  test_disasm();
-  return 0;
+//  test_disasm();
+//  return 0;
 
   GLXContext gl_context;
 
@@ -276,10 +289,13 @@ int main(int argc, char *argv[])
   gx_init();
   osd_init();
 
-  GLPipeline pipeline;
-
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  auto pipeline = GLPipeline()
+    .add<GLPipeline::Viewport>(1280, 720);
+
+  pipeline.use();
 
   gl_context
     .dbg_EnableMessages();
@@ -324,10 +340,11 @@ int main(int argc, char *argv[])
   bool running = true;
   bool change = false;
   bool use_fence = false;
-  while(auto ev = event_loop.event(IEventLoop::Block)) {
+  while(running) {
+    auto ev = event_loop.event();
     bool use_fence_initial = use_fence;
 
-    switch(ev->type()) {
+    switch(ev ? ev->type() : Event::Invalid) {
     case Event::KeyDown: {
       auto event = (IKeyEvent *)ev.get();
 

@@ -1,42 +1,165 @@
+#include "GL/glcorearb.h"
+#include "gx/gx.h"
 #include <gx/pipeline.h>
 #include <gx/vertex.h>
 #include <gx/program.h>
-
-// OpenGL/gl3w
-#include <GL/gl3w.h>
 
 #include <cstdio>
 #include <cstring>
 
 #include <algorithm>
+#include <limits>
+
+// OpenGL/gl3w
+#include <GL/gl3w.h>
+#include <sys/cdefs.h>
 
 namespace brgb {
+
+static GLPipeline p_current_pipeline;
+
+[[using gnu: always_inline]]
+static constexpr auto GLType_to_index_buf_type(GLType type) -> GLEnum
+{
+  switch(type) {
+  case GLType::u8:  return GL_UNSIGNED_BYTE;
+  case GLType::u16: return GL_UNSIGNED_SHORT;
+  case GLType::u32: return GL_UNSIGNED_INT;
+
+  default: ;   // Silence warnings
+  }
+
+  return GL_INVALID_ENUM;
+}
+
+[[using gnu: always_inline]]
+static constexpr auto GLPrimitive_to_mode(int p) -> GLEnum
+{
+  switch((GLPrimitive)p) {
+  case GLPrimitive::Points:        return GL_POINTS;
+  case GLPrimitive::Lines:         return GL_LINES;
+  case GLPrimitive::LineStrip:     return GL_LINE_STRIP;
+  case GLPrimitive::LineLoop:      return GL_LINE_LOOP;
+  case GLPrimitive::Triangles:     return GL_TRIANGLES;
+  case GLPrimitive::TriangleStrip: return GL_TRIANGLE_STRIP;
+  case GLPrimitive::TriangleFan:   return GL_TRIANGLE_FAN;
+  }
+
+  return GL_INVALID_ENUM;
+}
+
+auto GLPipeline::current() -> GLPipeline
+{
+  return p_current_pipeline;
+}
 
 GLPipeline::GLPipeline()
 {
   std::fill(state_structs_.begin(), state_structs_.end(), std::monostate());
+}
 
-  state_structs_ = {
-    Viewport { 0, 0, 1280, 720 },
-    VertexInput { 0, GLType::u16 },
-    InputAssembly { GLPrimitive::TriangleFan, 0xFFFF },
-  };
+auto GLPipeline::use() -> GLPipeline&
+{
+  for(const auto& s : diff(p_current_pipeline.state_structs_)) {
+    if((StateIndex)s.index() == StateIndex::None) break;  // diff() compacts the resulting array,
+                                                          //   so we can early-out at the first
+                                                          //   empty StateStruct
+    switch((StateIndex)s.index()) {
+    case StateIndex::VertexInput:   useVertexInputState(std::get<VertexInput>(s)); break;
+    case StateIndex::InputAssembly: useInputAssemblyState(std::get<InputAssembly>(s)); break;
+    case StateIndex::Viewport:      useViewportState(std::get<Viewport>(s)); break;
+    case StateIndex::Scissor:       useScissorState(std::get<Scissor>(s)); break;
+    case StateIndex::Rasterizer:    useRasterizerState(std::get<Rasterizer>(s)); break;
+    case StateIndex::DepthStencil:  useDepthStencilState(std::get<DepthStencil>(s)); break;
+    case StateIndex::Blend:         useBlendState(std::get<Blend>(s)); break;
 
-  StateStructArray other_state;
-  std::fill(other_state.begin(), other_state.end(), std::monostate());
+    default: assert(0 && "GLPipeline::use() unexpected StateStruct type!");
+    }
+  }
 
-  other_state = {
-    Viewport { 0, 0, 1280, 576 },
-    VertexInput { 0, GLType::u16 },
-    InputAssembly { GLPrimitive::TriangleFan, 0xFFFF },
-    Blend { 1 },
-  };
+  return p_current_pipeline = *this;
+}
 
+auto GLPipeline::draw(
+    u32 count,
+    size_t offset, size_t instance_count
+  ) -> GLPipeline&
+{
+  auto pvertex_input = getState<VertexInput>();
+  assert(pvertex_input && "GLPipeline::draw() called without VertexInput state set!");
 
-  diff(other_state);
+  auto pinput_assembly = getState<InputAssembly>();
+  assert(pinput_assembly && "GLPipeline::draw() called without InputAssembly state set!");
 
+  auto& vi = *pvertex_input;
+  auto& ia = *pinput_assembly;
 
+  auto mode = GLPrimitive_to_mode(ia.primitive);
+  
+  // Sanity check
+  assert(offset < std::numeric_limits<GLint>::max());
 
+  if(!instance_count) {
+    glDrawArrays(mode, (GLint)offset, count);
+  } else {
+    glDrawArraysInstanced(mode, (GLint)offset, count, instance_count);
+  }
+
+  return *this;
+}
+
+auto GLPipeline::drawIndexed(
+    u32 count,
+    size_t offset, size_t instance_count
+  ) -> GLPipeline&
+{
+  auto pvertex_input = getState<VertexInput>();
+  assert(pvertex_input && "GLPipeline::draw() called without VertexInput state set!");
+
+  auto pinput_assembly = getState<InputAssembly>();
+  assert(pinput_assembly && "GLPipeline::draw() called without InputAssembly state set!");
+
+  auto& vi = *pvertex_input;
+  auto& ia = *pinput_assembly;
+
+  auto mode = GLPrimitive_to_mode(ia.primitive);
+  auto inds_type = GLType_to_index_buf_type(vi.indices_type);
+  auto offset_ptr = (void *)(uintptr_t)offset;
+
+  if(!instance_count) {
+    glDrawElements(mode, count, inds_type, offset_ptr);
+  } else {
+    glDrawElementsInstanced(mode, count, inds_type, offset_ptr, instance_count);
+  }
+
+  return *this;
+}
+
+auto GLPipeline::drawIndexedBaseVertex(
+    u32 count, int base_vertex,
+    size_t offset, size_t instance_count
+  ) -> GLPipeline&
+{
+  auto pvertex_input = getState<VertexInput>();
+  assert(pvertex_input && "GLPipeline::draw() called without VertexInput state set!");
+
+  auto pinput_assembly = getState<InputAssembly>();
+  assert(pinput_assembly && "GLPipeline::draw() called without InputAssembly state set!");
+
+  auto& vi = *pvertex_input;
+  auto& ia = *pinput_assembly;
+
+  auto mode = GLPrimitive_to_mode(ia.primitive);
+  auto inds_type = GLType_to_index_buf_type(vi.indices_type);
+  auto offset_ptr = (void *)(uintptr_t)offset;
+
+  if(!instance_count) {
+    glDrawElementsBaseVertex(mode, count, inds_type, offset_ptr, base_vertex);
+  } else {
+    glDrawElementsInstancedBaseVertex(mode, count, inds_type, offset_ptr, instance_count, base_vertex);
+  }
+
+  return *this;
 }
 
 auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
@@ -48,12 +171,13 @@ auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
     for(const auto& st : array) {
       if(std::holds_alternative<std::monostate>(st)) continue;
 
-      ordered[st.index()-1] = st;
-    }
+      ordered[st.index() - 1] = st;  // StateIndex::None (the null StateStruct) does not
+    }                                //   have a slot reserved in StateStructArray
 
     return ordered;
   };
 
+#if 0
   auto print_state = [this](const auto& state) {
     for(const auto& st : state) {
       if(std::holds_alternative<std::monostate>(st)) continue;
@@ -68,15 +192,18 @@ auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
 
   puts("Before sort (other):");
   print_state(other);
+#endif
 
   StateStructArray ordered = order_state_structs(state_structs_);
   StateStructArray other_ordered = order_state_structs(other);
 
+#if 0
   puts("After sort (self):");
   print_state(ordered);
 
   puts("After sort (other):");
   print_state(other_ordered);
+#endif
 
   StateStructArray difference;
   std::fill(difference.begin(), difference.end(), std::monostate());
@@ -94,13 +221,102 @@ auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
     if(!result) continue;
 
     // Otherwise - add 'b' to the difference
-    difference[i] = b;
+    difference[i] = a;
   }
 
+  // Compact the result (move all filled StateStructs to the beginning)
+  std::remove_if(difference.begin(), difference.end(), [](const StateStruct& s) {
+      return (StateIndex)s.index() == StateIndex::None;
+  });
+  
+#if 0
   puts("difference:");
   print_state(difference);
+#endif
 
   return difference;
+}
+
+auto GLPipeline::useVertexInputState(const VertexInput& vi) -> void
+{
+  glBindVertexArray(vi.array);
+}
+
+auto GLPipeline::useInputAssemblyState(const InputAssembly& ia) -> void
+{
+  if(ia.primitive_restart) {
+    glEnable(GL_PRIMITIVE_RESTART);
+
+    glPrimitiveRestartIndex(ia.restart_index);
+  } else {
+    glDisable(GL_PRIMITIVE_RESTART);
+  }
+}
+
+auto GLPipeline::useViewportState(const Viewport& v) -> void
+{
+  glViewport(v.x, v.y, v.w, v.h);
+}
+
+auto GLPipeline::useScissorState(const Scissor& s) -> void
+{
+  if(s.scissor) {
+    glEnable(GL_SCISSOR_TEST);
+
+    glScissor(s.x, s.y, s.w, s.h);
+  } else {
+    glDisable(GL_SCISSOR_TEST);
+  }
+}
+
+auto GLPipeline::useRasterizerState(const Rasterizer& r) -> void
+{
+  if(r.cull_mode == CullNone) {
+    glDisable(GL_CULL_FACE);
+  } else {
+    glEnable(GL_CULL_FACE);
+  }
+
+  switch(r.cull_mode) {
+  case CullFront:        glCullFace(GL_FRONT); break;
+  case CullBack:         glCullFace(GL_BACK); break;
+  case CullFrontAndBack: glCullFace(GL_FRONT_AND_BACK); break;
+  }
+
+  switch(r.front_face) {
+  case FrontFaceCCW: glFrontFace(GL_CCW); break;
+  case FrontFaceCW:  glFrontFace(GL_CW); break;
+  }
+
+  switch(r.polygon_mode) {
+  case PolygonModeFilled: glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); break;
+  case PolygonModeLines:  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); break;
+  case PolygonModePoints: glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); break;
+  }
+}
+
+auto GLPipeline::useDepthStencilState(const DepthStencil& ds) -> void
+{
+  if(ds.depth_test) {
+    glEnable(GL_DEPTH_TEST);
+  } else {
+    glDisable(GL_DEPTH_TEST);
+  }
+
+  switch(ds.depth_func) {
+  case CompareFuncNever:        glDepthFunc(GL_NEVER); break;
+  case CompareFuncAlways:       glDepthFunc(GL_ALWAYS); break;
+  case CompareFuncEqual:        glDepthFunc(GL_EQUAL); break;
+  case CompareFuncNotEqual:     glDepthFunc(GL_NOTEQUAL); break;
+  case CompareFuncLess:         glDepthFunc(GL_LESS); break;
+  case CompareFuncLessEqual:    glDepthFunc(GL_LEQUAL); break;
+  case CompareFuncGreater:      glDepthFunc(GL_GREATER); break;
+  case CompareFuncGreaterEqual: glDepthFunc(GL_GEQUAL); break;
+  }
+}
+
+auto GLPipeline::useBlendState(const Blend& b) -> void
+{
 }
 
 }

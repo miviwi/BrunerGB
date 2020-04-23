@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bus/device.h"
 #include <types.h>
 
 namespace brgb {
@@ -41,8 +42,12 @@ public:
   // Called CONTINUALLY by the Scheduler
   virtual auto main() -> void = 0;
 
+protected:
+  auto scheduler() -> Scheduler *;
+
 private:
   friend Scheduler;
+  friend Thread;
 
   // Device's clock frequency
   double frequency_ = 0.0;
@@ -57,6 +62,9 @@ private:
   Clock scalar_ = 0;
 
   Clock clock_ = 0;
+
+  // Scheduler which owns this ISchedDevice
+  Scheduler *sched_ = nullptr;
 };
 
 }

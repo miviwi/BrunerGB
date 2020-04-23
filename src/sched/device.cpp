@@ -29,4 +29,9 @@ auto ISchedDevice::frequency(double freq) -> ISchedDevice&
   return *this;
 }
 
+auto ISchedDevice::scheduler() -> Scheduler *
+{
+  return sched_;
+}
+
 }

@@ -1,20 +1,22 @@
+#include "gx/gx.h"
 #include <osd/drawcall.h>
 #include <osd/surface.h>
 
 #include <gx/context.h>
 #include <gx/vertex.h>
+#include <gx/pipeline.h>
 #include <gx/program.h>
 #include <gx/buffer.h>
 #include <gx/texture.h>
 #include <gx/fence.h>
 
+#include <utility>
+#include <limits>
+
 // OpenGL/gl3w
 #include <GL/gl3w.h>
 
 #include <cassert>
-
-#include <utility>
-#include <limits>
 
 namespace brgb {
 
@@ -92,20 +94,6 @@ static const char *s_uniform_names[OSDDrawCall::NumDrawTypes][16 /* aribitrary *
   { nullptr },
 };
 
-[[using gnu: always_inline]]
-static constexpr auto GLType_to_index_buf_type(GLType type) -> GLEnum
-{
-  switch(type) {
-  case GLType::u8:  return GL_UNSIGNED_BYTE;
-  case GLType::u16: return GL_UNSIGNED_SHORT;
-  case GLType::u32: return GL_UNSIGNED_INT;
-
-  default: ;   // Silence warnings
-  }
-
-  return GL_INVALID_ENUM;
-}
-
 auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFence
 {
   assert((command != DrawInvalid && type != DrawTypeInvalid) &&
@@ -152,12 +140,16 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
         (inds_type != GLType::Invalid && inds && instance_count >= 0) &&
       "attempted to submit an indexed draw call with an invalid index buffer supplied!");
 
-  auto gl_inds_type = GLType_to_index_buf_type(inds_type);
-  auto offset_ptr = (const GLvoid *)offset;
+  auto pipeline = GLPipeline()
+    .add<GLPipeline::VertexInput>([this](GLPipeline::VertexInput& vi) {
+        vi.with_indexed_array(0 /* TODO: pass GLVertexArray here :) */, inds_type);
+    })
+    .add<GLPipeline::InputAssembly>([](GLPipeline::InputAssembly& ia) {
+        ia.with_primitive(GLPrimitive::TriangleFan)
+          .with_restart_index(0xFFFF);
+    });
 
-  assert((command != DrawIndexed && command != DrawIndexedInstanced) ||
-        (gl_inds_type != GL_INVALID_ENUM) &&
-      "an invalid type was given for the drawcall's index buffer elements!");
+  pipeline.use();
 
   // Bind the VAO and (optionally) the IndexBuffer as late
   //   as possible and in the correct order (can't bind to
@@ -167,21 +159,25 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
 
   switch(command) {
   case DrawArray:
-    glDrawArrays(GL_TRIANGLE_FAN, offset, count);
+    pipeline.draw(count, offset);
+    //glDrawArrays(GL_TRIANGLE_FAN, offset, count);
     break;
 
   case DrawIndexed:
-    glDrawElements(GL_TRIANGLE_FAN, count, gl_inds_type, offset_ptr);
+    pipeline.drawIndexed(count, offset);
+    //glDrawElements(GL_TRIANGLE_FAN, count, gl_inds_type, offset_ptr);
     break;
 
   case DrawArrayInstanced:
-    glDrawArraysInstanced(GL_TRIANGLE_FAN, offset, count, instance_count);
+    pipeline.draw(count, offset, instance_count);
+    //glDrawArraysInstanced(GL_TRIANGLE_FAN, offset, count, instance_count);
     break;
 
   case DrawIndexedInstanced:
-    glDrawElementsInstanced(
-        GL_TRIANGLE_FAN, count, gl_inds_type, offset_ptr, instance_count
-    );
+    pipeline.drawIndexed(count, offset, instance_count);
+    //glDrawElementsInstanced(
+    //    GL_TRIANGLE_FAN, count, gl_inds_type, offset_ptr, instance_count
+    //);
     break;
 
   default: assert(0);   // Unreachable

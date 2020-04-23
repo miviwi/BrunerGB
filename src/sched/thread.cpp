@@ -46,11 +46,13 @@ auto Thread::cothread_trampoline() -> void
 
   p_threads.erase(self);
 
-  assert(self->sched_ && "Thread ran before it was asigned to a Scheduler!");
-  while(true) {
-    self->sched_->sync();   // Mark this point as safe for pausing execution
+  auto device = self->device();
 
-    self->device()->main();
+  assert(device->sched_ && "Thread ran before it's device was asigned to a Scheduler!");
+  while(true) {
+    device->scheduler()->sync();   // Mark this point as safe for pausing execution
+
+    device->main();
   }
 }
 

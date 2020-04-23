@@ -51,9 +51,6 @@ private:
   // The object is NOT managed by the Thread and care must be
   //   taken so it's resources are freed elsewhere
   ISchedDevice *device_ = nullptr;
-
-  // Scheduler which owns this Thread (NOT owned by the Thread)
-  Scheduler *sched_ = nullptr;
 };
 
 }

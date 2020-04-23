@@ -53,6 +53,7 @@ target_sources (BrunerGB PRIVATE
   #   SM83
   ${SrcDir}/device/sm83/cpu.cpp
   ${SrcDir}/device/sm83/registers.cpp
+  ${SrcDir}/device/sm83/ops.cpp
   ${SrcDir}/device/sm83/disassembler.cpp
 
   # System/Gameboy sources

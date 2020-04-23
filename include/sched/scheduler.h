@@ -39,7 +39,7 @@ public:
 
   // Resets the clock's of all the device's and sets
   //   the primary thread to the one given
-  auto power(Thread::Ptr primary) -> Scheduler&;
+  auto power(ISchedDevice *primary) -> Scheduler&;
 
   // Execute device threads until a synchronization
   //   event (returned by the call) occurs
@@ -50,7 +50,9 @@ public:
   auto yield(DeviceEvent event) -> Scheduler&;
 
   // Mark a sync point from a device thread, where execution
-  //   can be safely paused
+  //   can be safely paused (the method is always called
+  //   by the Thread class right before the main() of
+  //   a device)
   auto sync() -> Scheduler&;
 
   // Returns 'true' if execution is in the middle of
@@ -59,6 +61,9 @@ public:
   //  - Used to avoid races between Threads, which
   //    belong to a single ISchedDevice
   auto duringSync() -> bool;
+
+  auto syncWithAll() -> void;
+  auto syncWith(ISchedDevice *device) -> void;
 
 private:
   // If two threads have a clock of 0, it is ambiguous which one to
@@ -92,9 +97,6 @@ private:
   //   the one which is always scheduled first when
   //   synchronization is requested)
   Thread::Ptr primary_;
-
-
-
 };
 
 }

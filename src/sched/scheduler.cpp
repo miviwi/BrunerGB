@@ -1,5 +1,3 @@
-#include "libco/libco.h"
-#include "sched/device.h"
 #include <sched/scheduler.h>
 
 #include <algorithm>
@@ -34,19 +32,26 @@ auto Scheduler::add(Thread::Ptr thread) -> bool
   // Add the thread to the back of the queue
   thread->device()->clock_ = aheadClock() + thread->id_;
 
-  thread->sched_ = this;
+  thread->device()->sched_ = this;
   threads_.push_back(thread);
 
   return true;
 }
 
-auto Scheduler::power(Thread::Ptr primary) -> Scheduler&
+auto Scheduler::power(ISchedDevice *primary) -> Scheduler&
 {
-  assert(primary->handle() && "Scheduler::power() requires a valid Thread!");
+  auto it_primary_thread = std::find_if(threads_.begin(), threads_.end(), [=](const auto& t) {
+    return t->device() == primary;
+  });
+
+  assert(it_primary_thread != threads_.end() &&
+      "Scheduler::power(): 'primary' not owned by this Scheduler!");
+
+  auto& primary_thread = *it_primary_thread;
 
   // Set the primary thread...
-  primary_ = primary;
-  resume_ = primary->handle();
+  primary_ = primary_thread;
+  resume_ = primary_thread->handle();
 
   //  ...and reset all the clocks
   for(auto& t : threads_) {
@@ -130,6 +135,31 @@ auto Scheduler::sync() -> Scheduler&
 auto Scheduler::duringSync() -> bool
 {
   return mode_ == SyncAux;
+}
+
+auto Scheduler::syncWithAll() -> void
+{
+  // This will eventually attempt to sync the currently running
+  //   device with itself, but this is safe as a device is never
+  //   considered to be behind itself
+  for(auto& t : threads_) {
+    syncWith(t->device());
+  }
+}
+
+auto Scheduler::syncWith(ISchedDevice *device) -> void
+{
+  auto it_self = std::find_if(threads_.begin(), threads_.end(), [](const Thread::Ptr& t) {
+    return co_active() == t->thread_;
+  });
+  assert(it_self != threads_.end() && "current Thread not owned by this Scheduler!");
+
+  auto& self = *it_self;
+  while(device->clock() < self->device()->clock()) {
+    if(duringSync()) break;
+
+    co_switch(self->handle());
+  }
 }
 
 auto Scheduler::uniqueId() -> Thread::Id
