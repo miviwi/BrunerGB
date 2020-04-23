@@ -179,13 +179,12 @@ void main()
 
   float glyph_sample = texture(usFont, fi.UV).r;
   float alpha = glyph_sample;
-  float alpha_mask = 1.0f-glyph_sample;
 
   vec3 glyph_color = fi.Color * glyph_sample;
 
 #if defined(NO_BLEND)
   // Do the equivalent of an old-school alpha test (NOT - blend!)
-  if(alpha_mask < 0.0f) discard;
+  if(alpha < 1.0f) discard;
 
   foFragColor = glyph_color;
 #else

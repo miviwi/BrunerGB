@@ -72,7 +72,7 @@ struct OSDDrawCall {
 semi-private:
 */
   class SubmitFriendKey {
-    SubmitFriendKey() { }
+    SubmitFriendKey() = default;
 
     friend auto osd_submit_drawcall(
         GLContext& gl_context, const OSDDrawCall& drawcall

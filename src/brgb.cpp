@@ -289,8 +289,10 @@ int main(int argc, char *argv[])
   gx_init();
   osd_init();
 
+#if 0
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
 
   auto pipeline = GLPipeline()
     .add<GLPipeline::Viewport>(1280, 720);
@@ -304,8 +306,6 @@ int main(int argc, char *argv[])
 
   gl_context
     .dbg_PushCallGroup("OSD");
-
-  glDisable(GL_DEPTH_TEST);
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -323,9 +323,6 @@ int main(int argc, char *argv[])
   fflush(stdout);
 
   auto c = x11().connection<xcb_connection_t>();
-
-  glEnable(GL_PRIMITIVE_RESTART);
-  glPrimitiveRestartIndex(0xFFFF);
 
   OSDSurface some_surface;
   some_surface

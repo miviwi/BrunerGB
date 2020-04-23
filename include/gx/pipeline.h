@@ -30,6 +30,15 @@ public:
     CompareFuncEqual = 2, CompareFuncNotEqual = 3,
     CompareFuncLess = 4, CompareFuncLessEqual = 5,
     CompareFuncGreater = 6, CompareFuncGreaterEqual = 7,
+
+    Factor0 = 0, Factor1 = 1, 
+    FactorSrcColor = 2, Factor1MinusSrcColor = 3,
+    FactorDstColor = 4, Factor1MinusDstColor = 5,
+    FactorSrcAlpha = 6, Factor1MinusSrcAlpha = 7,
+    FactorDstAlpha = 8, Factor1MinusDstAlpha = 9,
+    FactorConstColor = 10, Factor1MinusConstColor = 11,
+    FactorConstAlpha = 12, Factor1MinusConstAlpha = 13,
+    FactorSrcAlpha_Saturate = 14,
   };
 
   struct VertexInput {
@@ -157,10 +166,21 @@ public:
 
   struct Blend {
     u32 blend : 1;
+    u32 src_factor : 4;
+    u32 dst_factor : 4;
 
     auto no_blend() -> Blend&
     {
       blend = false;
+
+      return *this;
+    }
+
+    auto alpha_blend() -> Blend&
+    {
+      blend = true;
+      src_factor = FactorSrcAlpha;
+      dst_factor = Factor1MinusSrcAlpha;
 
       return *this;
     }

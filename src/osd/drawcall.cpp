@@ -147,6 +147,12 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
     .add<GLPipeline::InputAssembly>([](GLPipeline::InputAssembly& ia) {
         ia.with_primitive(GLPrimitive::TriangleFan)
           .with_restart_index(0xFFFF);
+    })
+    .add<GLPipeline::DepthStencil>([](GLPipeline::DepthStencil& ds) {
+        ds.no_depth_test();
+    })
+    .add<GLPipeline::Blend>([](GLPipeline::Blend& b) {
+        b.alpha_blend();
     });
 
   pipeline.use();
@@ -184,7 +190,7 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
   }
 
   // Make sure to clean-up after drawing as leaving VAOs and 'ELEMENT_ARRAY_BUFFER'
-  //   buffer objects bound can alter those object's internal state unexpectedly
+  //   buffer objects bound can alter these object's internal state unexpectedly
   verts->unbind();
   if(inds) inds->unbind();
 

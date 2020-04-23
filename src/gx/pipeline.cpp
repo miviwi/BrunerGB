@@ -1,14 +1,13 @@
-#include "GL/glcorearb.h"
-#include "gx/gx.h"
+#include <gx/gx.h>
 #include <gx/pipeline.h>
 #include <gx/vertex.h>
 #include <gx/program.h>
 
-#include <cstdio>
-#include <cstring>
-
 #include <algorithm>
 #include <limits>
+
+#include <cstdio>
+#include <cstring>
 
 // OpenGL/gl3w
 #include <GL/gl3w.h>
@@ -43,6 +42,30 @@ static constexpr auto GLPrimitive_to_mode(int p) -> GLEnum
   case GLPrimitive::Triangles:     return GL_TRIANGLES;
   case GLPrimitive::TriangleStrip: return GL_TRIANGLE_STRIP;
   case GLPrimitive::TriangleFan:   return GL_TRIANGLE_FAN;
+  }
+
+  return GL_INVALID_ENUM;
+}
+
+[[using gnu: always_inline]]
+static constexpr auto blend_factor_to_GLEnum(u32 factor) -> GLEnum
+{
+  switch(factor) {
+  case GLPipeline::Factor0:                 return GL_ZERO;
+  case GLPipeline::Factor1:                 return GL_ONE;
+  case GLPipeline::FactorSrcColor:          return GL_SRC_COLOR;
+  case GLPipeline::Factor1MinusSrcColor:    return GL_ONE_MINUS_SRC_COLOR;
+  case GLPipeline::FactorDstColor:          return GL_DST_COLOR;
+  case GLPipeline::Factor1MinusDstColor:    return GL_ONE_MINUS_DST_COLOR;
+  case GLPipeline::FactorSrcAlpha:          return GL_SRC_ALPHA;
+  case GLPipeline::Factor1MinusSrcAlpha:    return GL_ONE_MINUS_SRC_ALPHA;
+  case GLPipeline::FactorDstAlpha:          return GL_DST_ALPHA;
+  case GLPipeline::Factor1MinusDstAlpha:    return GL_ONE_MINUS_DST_ALPHA;
+  case GLPipeline::FactorConstColor:        return GL_CONSTANT_COLOR;
+  case GLPipeline::Factor1MinusConstColor:  return GL_ONE_MINUS_CONSTANT_COLOR;
+  case GLPipeline::FactorConstAlpha:        return GL_CONSTANT_ALPHA;
+  case GLPipeline::Factor1MinusConstAlpha:  return GL_ONE_MINUS_CONSTANT_ALPHA;
+  case GLPipeline::FactorSrcAlpha_Saturate: return GL_SRC_ALPHA_SATURATE;
   }
 
   return GL_INVALID_ENUM;
@@ -177,33 +200,8 @@ auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
     return ordered;
   };
 
-#if 0
-  auto print_state = [this](const auto& state) {
-    for(const auto& st : state) {
-      if(std::holds_alternative<std::monostate>(st)) continue;
-
-      printf("    %zu,\n", st.index());
-    }
-    puts("");
-  };
-
-  puts("Before sort (self):");
-  print_state(state_structs_);
-
-  puts("Before sort (other):");
-  print_state(other);
-#endif
-
   StateStructArray ordered = order_state_structs(state_structs_);
   StateStructArray other_ordered = order_state_structs(other);
-
-#if 0
-  puts("After sort (self):");
-  print_state(ordered);
-
-  puts("After sort (other):");
-  print_state(other_ordered);
-#endif
 
   StateStructArray difference;
   std::fill(difference.begin(), difference.end(), std::monostate());
@@ -229,11 +227,6 @@ auto GLPipeline::diff(const StateStructArray& other) -> StateStructArray
       return (StateIndex)s.index() == StateIndex::None;
   });
   
-#if 0
-  puts("difference:");
-  print_state(difference);
-#endif
-
   return difference;
 }
 
@@ -317,6 +310,16 @@ auto GLPipeline::useDepthStencilState(const DepthStencil& ds) -> void
 
 auto GLPipeline::useBlendState(const Blend& b) -> void
 {
+  if(b.blend) {
+    glEnable(GL_BLEND);
+
+    auto sfactor = blend_factor_to_GLEnum(b.src_factor),
+         dfactor = blend_factor_to_GLEnum(b.dst_factor);
+
+    glBlendFunc(sfactor, dfactor);
+  } else {
+    glDisable(GL_BLEND);
+  }
 }
 
 }
