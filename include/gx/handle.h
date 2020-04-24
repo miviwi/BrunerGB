@@ -37,7 +37,7 @@ public:
 semi-private:
 */
   class ConstructorFriendKey {
-    ConstructorFriendKey() { }
+    ConstructorFriendKey() = default;
 
     friend auto vertex_format_detail::GLVertexArray_to_ptr(
         GLVertexArray&& array

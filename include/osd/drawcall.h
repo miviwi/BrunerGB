@@ -68,6 +68,8 @@ struct OSDDrawCall {
   // 1 past the offset after which no more entries are present in 'textures'
   size_t textures_end;
 
+  GLProgram *program;
+
 /*
 semi-private:
 */
@@ -110,6 +112,12 @@ auto osd_drawcall_strings(
     GLVertexArray *verts_, GLType inds_type_, GLIndexBuffer *inds_, GLSizePtr base_offset,
     GLSize max_string_len_, GLSize num_strings_,
     GLTexture2D *font_tex_, GLSampler *font_sampler_, GLTextureBuffer *strings_, GLTextureBuffer *attrs_
+  ) -> OSDDrawCall;
+
+auto osd_drawcall_quad(
+    GLVertexArray *verts_,
+    GLTexture2D *textures[], GLSampler *samplers[], size_t num_textures,
+    GLProgram *program_
   ) -> OSDDrawCall;
 
 // Sets up the proper state and calls glDraw<Arrays,Elements>[Instanced]()

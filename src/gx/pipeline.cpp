@@ -11,7 +11,6 @@
 
 // OpenGL/gl3w
 #include <GL/gl3w.h>
-#include <sys/cdefs.h>
 
 namespace brgb {
 

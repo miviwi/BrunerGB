@@ -5,6 +5,7 @@
 
 #include <exception>
 #include <stdexcept>
+#include <memory>
 #include <optional>
 
 namespace brgb {
@@ -315,6 +316,8 @@ public:
     { }
   };
 
+  GLBufferMapping() = default;
+  GLBufferMapping(GLBufferMapping&& other);
   GLBufferMapping(const GLBufferMapping&) = delete;
   ~GLBufferMapping();
 
@@ -367,15 +370,15 @@ private:
   friend GLBuffer;
 
   GLBufferMapping(
-      GLBuffer& buffer, u32 /* Flags */ flags, void *ptr,
+      GLBuffer *buffer, u32 /* Flags */ flags, void *ptr,
       intptr_t offset, GLSizePtr size
   );
 
-  GLBuffer& buffer_;
-  u32 /* GLBuffer::Flags */ flags_;
-  void *ptr_;
+  GLBuffer *buffer_ = nullptr;
+  u32 /* GLBuffer::Flags */ flags_ = 0;
+  void *ptr_ = nullptr;
 
-  intptr_t offset_; GLSizePtr size_;
+  intptr_t offset_ = -1; GLSizePtr size_ = 0;
 };
 
 class GLVertexBuffer : public GLBuffer {

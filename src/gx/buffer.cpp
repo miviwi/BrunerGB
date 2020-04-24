@@ -9,6 +9,7 @@
 
 #include <cassert>
 
+#include <limits>
 #include <new>
 
 namespace brgb {
@@ -258,7 +259,7 @@ auto GLBuffer::map(u32 flags, intptr_t offset, GLSizePtr size) -> GLBufferMappin
 
         map_counter_++;
 
-        return GLBufferMapping(*this, mapping_->flags, new_ptr, new_offset, size);
+        return GLBufferMapping(this, mapping_->flags, new_ptr, new_offset, size);
       } else {
         // ...if not - destroy it and map the buffer once more
         doUnmap(MappingFriendKey(), /* force */ true);
@@ -306,7 +307,7 @@ auto GLBuffer::map(u32 flags, intptr_t offset, GLSizePtr size) -> GLBufferMappin
 
   map_counter_++;
 
-  return GLBufferMapping(*this, flags, ptr, offset, size);
+  return GLBufferMapping(this, flags, ptr, offset, size);
 }
 
 auto GLBuffer::unmap() -> GLBuffer&
@@ -413,8 +414,18 @@ auto GLBuffer::doDestroy() -> GLBuffer&
   return *this;
 }
 
+GLBufferMapping::GLBufferMapping(GLBufferMapping&& other) :
+  GLBufferMapping()
+{
+  std::swap(buffer_, other.buffer_);
+  std::swap(flags_, other.flags_);
+  std::swap(ptr_, other.ptr_);
+  std::swap(offset_, other.offset_);
+  std::swap(size_, other.size_);
+}
+
 GLBufferMapping::GLBufferMapping(
-    GLBuffer& buffer, u32 /* Flags */ flags, void *ptr,
+    GLBuffer *buffer, u32 /* Flags */ flags, void *ptr,
     intptr_t offset, GLSizePtr size
 ) :
   buffer_(buffer), flags_(flags), ptr_(ptr),
@@ -426,7 +437,9 @@ GLBufferMapping::GLBufferMapping(
 
 GLBufferMapping::~GLBufferMapping()
 {
-  buffer_.unmap();
+  if(!buffer_) return;
+
+  buffer_->unmap();
 }
 
 auto GLBufferMapping::get() -> void *
@@ -443,7 +456,7 @@ auto GLBufferMapping::flush(intptr_t offset, GLSizePtr length) -> GLBufferMappin
 {
   if(!ptr_) throw FlushUnmappedError();
 
-  buffer_.doFlushMapping(GLBuffer::MappingFriendKey(), offset, length, ptr_);
+  buffer_->doFlushMapping(GLBuffer::MappingFriendKey(), offset, length, ptr_);
   return *this;
 }
 
@@ -451,7 +464,7 @@ void GLBufferMapping::unmap()
 {
   assert(ptr_ && "attempted to unmap() a null mapping!");
 
-  buffer_.doUnmap(GLBuffer::MappingFriendKey());
+  buffer_->doUnmap(GLBuffer::MappingFriendKey());
   ptr_ = nullptr;     // Mark the mapping object itself as unmapped
 }
 

@@ -280,14 +280,14 @@ private:
 
   // Stores info about bound vertex buffers required
   //   for the ARB_vertex_array_object code path(s).
-  //  - 'Required' meaning - needed to make the two
-  //    code paths (ARB_vertex_attrib_binding,
+  //  - 'Required' meaning - there was a need to make
+  //    the two code paths (ARB_vertex_attrib_binding,
   //    ARB_vertex_array_object) as close to indisti-
   //    -nguishable from each other from the outside
   //    as possible
   //  - For reasoning behind marking this array as
   //    'mutable' - see comment above the member
-  //    above 'bound_vertex_buffer_bitfield_'
+  //    'bound_vertex_buffer_bitfield_'
   mutable BufferArray buffers_;
 
   // See comment above the padding() setter method

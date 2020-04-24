@@ -33,7 +33,9 @@ target_sources (BrunerGB PRIVATE
   # OSD specific sources
   ${SrcDir}/osd/osd.cpp
   ${SrcDir}/osd/font.cpp
+  ${SrcDir}/osd/pixmap.cpp
   ${SrcDir}/osd/shaders.cpp
+  ${SrcDir}/osd/quadshader.cpp
   ${SrcDir}/osd/util.cpp
   ${SrcDir}/osd/drawcall.cpp
   ${SrcDir}/osd/surface.cpp

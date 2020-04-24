@@ -20,11 +20,20 @@
 
 namespace brgb {
 
+[[using gnu: always_inline]]
+constexpr static auto tex_and_sampler(
+    GLTexture *tex, GLSampler *sampler
+  ) -> OSDDrawCall::TextureAndSampler
+{
+  return OSDDrawCall::TextureAndSampler(tex, sampler);
+}
+
 OSDDrawCall::OSDDrawCall() :
   command(DrawInvalid), type(DrawTypeInvalid),
   verts(nullptr), inds_type(GLType::Invalid),
   offset(-1), count(-1), instance_count(-1),
-  textures_end(0)
+  textures_end(0),
+  program(nullptr)
 {
   for(auto& tex_and_sampler : textures) {
     tex_and_sampler = TextureAndSampler(nullptr, nullptr);
@@ -37,13 +46,6 @@ auto osd_drawcall_strings(
     GLTexture2D *font_tex_, GLSampler *font_sampler_, GLTextureBuffer *strings_, GLTextureBuffer *attrs_
   ) -> OSDDrawCall
 {
-  auto tex_and_sampler = [](
-      GLTexture *tex, GLSampler *sampler
-    ) -> OSDDrawCall::TextureAndSampler
-  {
-    return OSDDrawCall::TextureAndSampler(tex, sampler);
-  };
-
   auto drawcall = OSDDrawCall();
 
   drawcall.command = OSDDrawCall::DrawIndexedInstanced;
@@ -67,13 +69,40 @@ auto osd_drawcall_strings(
       tex_and_sampler(attrs_, nullptr),
     },
 
-  drawcall.textures_end = 3; // 2 Textures sequentially - thus index '2' is one past the last one
+  drawcall.textures_end = 3; // 3 Textures sequentially - thus index '3' is one past the last one
+
+  return drawcall;
+}
+
+auto osd_drawcall_quad(
+    GLVertexArray *verts_,
+    GLTexture2D *textures[], GLSampler *samplers[], size_t num_textures,
+    GLProgram *program_
+  ) -> OSDDrawCall
+{
+  auto drawcall = OSDDrawCall();
+
+  drawcall.command = OSDDrawCall::DrawArray;
+  drawcall.type    = OSDDrawCall::DrawShadedQuad;
+
+  drawcall.verts = verts_;
+  drawcall.offset = 0;
+
+  // The quad is drawn as a triangle-fan, so there is no need to repeat vertices
+  drawcall.count = 4;
+
+  for(size_t t = 0; t < num_textures; t++) {
+    drawcall.textures[t] = tex_and_sampler(textures[t], samplers[t]);
+  }
+  drawcall.textures_end = num_textures; // The textures are bound sequentially
+
+  drawcall.program = program_;
 
   return drawcall;
 }
 
 auto osd_submit_drawcall(
-    GLContext& gl_context,  const OSDDrawCall& drawcall
+    GLContext& gl_context, const OSDDrawCall& drawcall
   ) -> GLFence
 {
   return std::move(drawcall.submit(OSDDrawCall::SubmitFriendKey(), gl_context));
@@ -99,9 +128,9 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
   assert((command != DrawInvalid && type != DrawTypeInvalid) &&
       "attempted to submit an invalid OSDDrawCall!");
 
-  // Bind all the required textures and upload the TexImageUnit
-  //   uniforms to the OSDSurface::renderProgram(type)...
-  auto& program = OSDSurface::renderProgram(type);
+  // If a program wasn't specified for this drawcall - use the
+  //   default for it's 'type'
+  auto& program = this->program ? *this->program : OSDSurface::renderProgram(type);
   program
     .use();
 
@@ -111,6 +140,8 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
     break;
   }
 
+  // Bind all the required textures and upload the TexImageUnit
+  //   uniforms to the OSDSurface::renderProgram(type)...
   auto tex_uniform_names = s_uniform_names[type];
   for(unsigned i = 0; i < textures_end; i++) {
     auto [tex, sampler] = textures.at(i);

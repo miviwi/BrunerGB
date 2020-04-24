@@ -28,6 +28,7 @@
 #include <x11/glx.h>
 #include <osd/osd.h>
 #include <osd/font.h>
+#include <osd/pixmap.h>
 #include <osd/drawcall.h>
 #include <osd/surface.h>
 #include <device/sm83/cpu.h>
@@ -323,6 +324,23 @@ int main(int argc, char *argv[])
   fflush(stdout);
 
   auto c = x11().connection<xcb_connection_t>();
+
+  OSDPixmap osd_bitmap(160, 144);
+
+  {
+    auto bitmap_view = osd_bitmap.lock();
+    for(auto& c : bitmap_view) {
+      c = OSDPixmap::Color { 0xFF, 0x66, 0x66, 0xFF };
+    }
+    osd_bitmap.unlock();
+  }
+  {
+    auto bitmap_view = osd_bitmap.lock();
+    for(auto& c : bitmap_view) {
+      c = OSDPixmap::Color { 0xFF, 0xFF, 0x66, 0xFF };
+    }
+    osd_bitmap.unlock();
+  }
 
   OSDSurface some_surface;
   some_surface

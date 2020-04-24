@@ -7,6 +7,7 @@
 #include <window/color.h>
 #include <gx/handle.h>
 
+#include <initializer_list>
 #include <exception>
 #include <stdexcept>
 #include <vector>
@@ -16,6 +17,7 @@ namespace brgb {
 
 // Forward declarations
 class OSDBitmapFont;
+class OSDPixmap;
 class OSDDrawCall;
 class GLVertexArray;
 class GLProgram;
@@ -57,6 +59,8 @@ public:
     ) -> OSDSurface&;
 
   auto writeString(ivec2 pos, const char *string, const Color& color) -> OSDSurface&;
+
+  auto drawQuad(ivec2 pos, ivec2 size, std::initializer_list<OSDPixmap *> pixmaps) -> OSDSurface&;
 
   auto draw() -> std::vector<OSDDrawCall>;
 

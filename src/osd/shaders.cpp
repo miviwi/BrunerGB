@@ -2,12 +2,14 @@
 
 #include <gx/program.h>
 
+#include <memory>
+
 #include <cassert>
 #include <cstdio>
 
 namespace brgb::osd_detail {
 
-static const char *s_osd_vs_src = R"VERT(
+static const char *s_osd_drawstring_vs_src = R"VERT(
 #if defined(USE_INSTANCE_ATTRIBUTES)
 layout(location = 0) in ivec4 viStringXYOffsetLength;
 layout(location = 1) in vec4 viStringColorRGBX;
@@ -147,7 +149,7 @@ void main()
 }
 )VERT";
 
-static const char *s_osd_fs_src = R"FRAG(
+static const char *s_osd_drawstring_fs_src = R"FRAG(
 in Vertex {
   vec3 Position;
   vec3 Color;
@@ -193,6 +195,28 @@ void main()
 }
 )FRAG";
 
+static const char *s_osd_drawquad_vs_src = R"VERT(
+layout(location = 0) in vec3 viPosition;
+
+uniform mat4 um4Projection;
+
+void main()
+{
+  gl_Position = um4Projection * vec4(viPosition, 1.0f);
+}
+)VERT";
+
+static const char *s_osd_drawquad_fs_src = R"FRAG(
+#define OUTPUT_CHANNELS vec4
+
+out OUTPUT_CHANNELS foFragColor;
+
+void main()
+{
+  foFragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
+}
+)FRAG";
+
 auto init_DrawString_program() -> GLProgram*
 {
   auto gl_program_ptr = new GLProgram();
@@ -202,10 +226,10 @@ auto init_DrawString_program() -> GLProgram*
   GLShader frag(GLShader::Fragment);
 
   vert
-    .source(s_osd_vs_src);
+    .source(s_osd_drawstring_vs_src);
 
   frag
-    .source(s_osd_fs_src);
+    .source(s_osd_drawstring_fs_src);
 
   auto try_compile_shader = [](GLShader& shader)
   {
@@ -259,9 +283,35 @@ auto init_DrawRectangle_program() -> GLProgram*
 
 auto init_DrawShadedQuad_program() -> GLProgram*
 {
-  puts("TODO: OSDDrawCall::DrawShadedQuad program unimplemented!");
-
   return nullptr;
+}
+
+thread_local GLShader *p_quad_vert_shader = nullptr;
+
+auto compile_DrawShadedQuad_vertex_shader() -> GLShader*
+{
+  if(p_quad_vert_shader) return p_quad_vert_shader;
+
+  auto vert_ptr = new GLShader(GLShader::Vertex);
+  auto& vert = *vert_ptr;
+
+  vert
+    .source(s_osd_drawquad_vs_src);
+
+  try {
+    vert.compile();
+  } catch(const std::exception& e) {
+    // Print the compilation errors to the console...
+    auto info_log = vert.infoLog();
+    if(info_log && !info_log->empty()) puts(info_log->data());
+
+    // ...and terminate
+    exit(-2);
+  }
+
+  vert.label("p.OSD.DrawShadedQuadVS");
+
+  return p_quad_vert_shader = vert_ptr;
 }
 
 }
