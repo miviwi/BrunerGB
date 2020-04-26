@@ -468,6 +468,20 @@ auto GLProgram::uniformVec(const char *name, float x, float y, float z) -> GLPro
   return *this;
 }
 
+auto GLProgram::uniformIVec(const char *name, int x, int y, int z, int w) -> GLProgram&
+{
+  auto [location, _] = uniformLocationType(name, IVec4);
+
+  uploadUniform(
+      ARB::direct_state_access || EXT::direct_state_access,
+      glProgramUniform4i, glUniform4i, location, x, y, z, w
+  );
+
+  assert(glGetError() == GL_NO_ERROR);
+
+  return *this;
+}
+
 auto GLProgram::uniformMat4x4(const char *name, const float *mat) -> GLProgram&
 {
   auto [location, _] = uniformLocationType(name, Mat4x4);

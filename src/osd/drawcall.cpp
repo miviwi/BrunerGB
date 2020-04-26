@@ -28,6 +28,18 @@ constexpr static auto tex_and_sampler(
   return OSDDrawCall::TextureAndSampler(tex, sampler);
 }
 
+[[using gnu: always_inline]]
+constexpr static auto uniform_vec4(float x, float y, float z, float w) -> OSDDrawCall::UniformVec4
+{
+  return OSDDrawCall::UniformVec4({ x, y, z, w });
+}
+
+[[using gnu: always_inline]]
+constexpr static auto uniform_ivec4(int x, int y, int z, int w) -> OSDDrawCall::UniformIVec4
+{
+  return OSDDrawCall::UniformIVec4({ x, y, z, w });
+}
+
 OSDDrawCall::OSDDrawCall() :
   command(DrawInvalid), type(DrawTypeInvalid),
   verts(nullptr), inds_type(GLType::Invalid),
@@ -76,6 +88,7 @@ auto osd_drawcall_strings(
 
 auto osd_drawcall_quad(
     GLVertexArray *verts_,
+    ivec2 pos, ivec2 width_height,
     GLTexture2D *textures[], GLSampler *samplers[], size_t num_textures,
     GLProgram *program_
   ) -> OSDDrawCall
@@ -88,6 +101,8 @@ auto osd_drawcall_quad(
   drawcall.verts = verts_;
   drawcall.offset = 0;
 
+  drawcall.inds = nullptr;   // Non-indexed draw
+
   // The quad is drawn as a triangle-fan, so there is no need to repeat vertices
   drawcall.count = 4;
 
@@ -97,6 +112,13 @@ auto osd_drawcall_quad(
   drawcall.textures_end = num_textures; // The textures are bound sequentially
 
   drawcall.program = program_;
+
+  drawcall.uniforms.emplace({
+      OSDDrawCall::ProgramUniform {
+        .name = "uv4Quad_Pos_Dimensions",
+        .val = uniform_ivec4(pos.x, pos.y, width_height.x, width_height.y),
+      },
+  });
 
   return drawcall;
 }
@@ -138,6 +160,17 @@ auto OSDDrawCall::submit(SubmitFriendKey, GLContext& gl_context) const -> GLFenc
   case OSDDrawCall::DrawString:
     program.uniform("uiStringAttributesBaseOffset", (int)base_instance);
     break;
+  }
+
+  if(uniforms.has_value()) {
+    for(const auto& u : uniforms.value()) {
+      if((UniformValueType)u.val.index() == UniformValueType::IVec4) {
+        auto& vec = std::get<UniformIVec4>(u.val);
+        auto [x, y, z, w] = vec;
+
+        program.uniformIVec(u.name.data(), x, y, z, w);
+      }
+    }
   }
 
   // Bind all the required textures and upload the TexImageUnit

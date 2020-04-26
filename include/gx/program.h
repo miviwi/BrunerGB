@@ -220,6 +220,7 @@ public:
 
   auto uniformVec(const char *name, float x, float y) -> GLProgram&;
   auto uniformVec(const char *name, float x, float y, float z) -> GLProgram&;
+  auto uniformIVec(const char *name, int x, int y, int z, int w) -> GLProgram&;
 
   auto uniformMat4x4(const char *name, const float *mat) -> GLProgram&;
 

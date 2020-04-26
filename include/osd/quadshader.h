@@ -20,6 +20,10 @@ public:
     { }
   };
 
+  OSDQuadShader() = default;
+
+  OSDQuadShader(OSDQuadShader&& other);
+  OSDQuadShader(const OSDQuadShader&) = delete;
   ~OSDQuadShader();
 
   auto addSource(const char *src) -> OSDQuadShader&;
@@ -41,8 +45,6 @@ public:
 
 private:
   friend OSDSurface;
-
-  OSDQuadShader() = default;
 
   auto destroy() -> void;
 

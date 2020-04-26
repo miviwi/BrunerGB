@@ -1,5 +1,7 @@
+#include "osd/pixmap.h"
 #include <osd/surface.h>
 #include <osd/font.h>
+#include <osd/quadshader.h>
 #include <osd/drawcall.h>
 
 #include <gx/gx.h>
@@ -54,6 +56,11 @@ auto OSDSurface::create(
   return *this;
 }
 
+auto OSDSurface::createShader() -> OSDQuadShader&
+{
+  return shadedquad_shaders_.emplace_back();
+}
+
 auto OSDSurface::writeString(ivec2 pos, const char *string, const Color& color) -> OSDSurface&
 {
   assert(string && "attempted to write a nullptr string!");
@@ -69,13 +76,31 @@ auto OSDSurface::writeString(ivec2 pos, const char *string, const Color& color) 
   return *this;
 }
 
+auto OSDSurface::drawQuad(
+    ivec2 pos, ivec2 width_height,
+    OSDQuadShader *shader,
+    std::initializer_list<OSDPixmap *> pixmaps
+  ) -> OSDSurface&
+{
+  if(!created_) throw NullSurfaceError();
+
+  shadedquad_objects_.push_back(ShadedQuadObject {
+      pos, width_height,
+
+      shader,
+  });
+
+  return *this;
+}
+
 auto OSDSurface::draw() -> std::vector<OSDDrawCall>
 {
   std::vector<OSDDrawCall> drawcalls;
 
   appendStringDrawcalls(drawcalls);
+  appendShadedQuadDrawcalls(drawcalls);
 
-  return std::move(drawcalls);
+  return drawcalls;
 }
 
 auto OSDSurface::clear() -> OSDSurface&
@@ -323,6 +348,23 @@ void OSDSurface::appendStringDrawcalls(std::vector<OSDDrawCall>& drawcalls)
           empty_vertex_array_.get(), GLType::u16, surface_object_inds_, bucket*strs_per_bucket * 2,
           bucket_str_size, strs_in_bucket,
           font_tex_, font_sampler_, strings_tex_, string_attrs_tex_)
+    );
+  }
+}
+
+void OSDSurface::appendShadedQuadDrawcalls(std::vector<OSDDrawCall>& drawcalls)
+{
+  for(const auto& quad : shadedquad_objects_) {
+    auto program = &quad.shader->program();
+    
+    program->uniformMat4x4("um4Projection", m_projection.data());
+
+    drawcalls.push_back(
+        osd_drawcall_quad(
+            empty_vertex_array_.get(),
+            quad.position, quad.width_height,
+            nullptr /* textures */, nullptr /* samplers */, 0 /* num_textures */,
+            program)
     );
   }
 }

@@ -196,24 +196,62 @@ void main()
 )FRAG";
 
 static const char *s_osd_drawquad_vs_src = R"VERT(
-layout(location = 0) in vec3 viPosition;
+out Vertex {
+  vec2 UV;
+} vo;
+
+// ivec4(pos.x, pos.y, width, height)
+uniform ivec4 uv4Quad_Pos_Dimensions;
 
 uniform mat4 um4Projection;
 
+const vec2 UVs[4] = vec2[](
+  vec2(0.0f, 0.0f),
+  vec2(0.0f, 1.0f),
+  vec2(1.0f, 1.0f),
+  vec2(1.0f, 0.0f)
+);
+
+// Gives an integer in the range [0;3] which is an
+//   index of the quad's vertex starting from the
+//   top-left and advancing counter-clockwise
+int GlyphQuad_VertexID() { return gl_VertexID & 3; }
+
 void main()
 {
-  gl_Position = um4Projection * vec4(viPosition, 1.0f);
+  int vert_id = GlyphQuad_VertexID();
+
+  vec2 pos = vec2(uv4Quad_Pos_Dimensions.xy);
+  vec2 dims = vec2(uv4Quad_Pos_Dimensions.zw);
+
+  vec2 QuadVerts[4] = vec2[](
+    pos,                            // Top-left
+    pos+vec2(0.0f, dims.y),         // Bottom-left
+    pos+dims,                       // Bottom-right
+    pos+vec2(dims.x, 0.0f)          // Top-right
+  );
+
+  vec2 vert = QuadVerts[vert_id];
+  vec2 uv = UVs[vert_id];
+
+  vo.UV = uv;
+
+  gl_Position = um4Projection * vec4(vert, 0.0f, 1.0f);
 }
 )VERT";
 
 static const char *s_osd_drawquad_fs_src = R"FRAG(
+in Vertex {
+  vec2 UV;
+} fi;
+
 #define OUTPUT_CHANNELS vec4
 
 out OUTPUT_CHANNELS foFragColor;
 
 void main()
 {
-  foFragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
+  foFragColor = vec4(fi.UV, 0.0f, 1.0f);
 }
 )FRAG";
 

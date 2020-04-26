@@ -3,8 +3,13 @@
 #include <osd/osd.h>
 
 #include <gx/gx.h>
+#include <util/math.h>
 
+#include <string>
 #include <tuple>
+#include <vector>
+#include <variant>
+#include <optional>
 
 namespace brgb {
 
@@ -70,6 +75,21 @@ struct OSDDrawCall {
 
   GLProgram *program;
 
+  using UniformIVec4 = std::array<int, 4>;
+  using UniformVec4  = std::array<float, 4>;
+  using UniformValue = std::variant<UniformIVec4, UniformVec4>;
+
+  enum class UniformValueType {
+    IVec4, Vec4,
+  };
+
+  struct ProgramUniform {
+    std::string name;
+    UniformValue val;
+  };
+
+  std::optional<std::vector<ProgramUniform>> uniforms;
+
 /*
 semi-private:
 */
@@ -116,6 +136,7 @@ auto osd_drawcall_strings(
 
 auto osd_drawcall_quad(
     GLVertexArray *verts_,
+    ivec2 pos, ivec2 width_height,
     GLTexture2D *textures[], GLSampler *samplers[], size_t num_textures,
     GLProgram *program_
   ) -> OSDDrawCall;

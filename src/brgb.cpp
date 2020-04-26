@@ -29,6 +29,7 @@
 #include <osd/osd.h>
 #include <osd/font.h>
 #include <osd/pixmap.h>
+#include <osd/quadshader.h>
 #include <osd/drawcall.h>
 #include <osd/surface.h>
 #include <device/sm83/cpu.h>
@@ -342,6 +343,7 @@ int main(int argc, char *argv[])
     osd_bitmap.unlock();
   }
 
+
   OSDSurface some_surface;
   some_surface
     .create({ window_geometry.w, window_geometry.h }, &topaz)
@@ -349,6 +351,24 @@ int main(int argc, char *argv[])
     .writeString({ 0, 0 }, "ASDF1234567890", Color::red())
     .writeString({ 128, 100 }, "xyz", Color::blue())
     .writeString({ 128, 200 }, "!#@$", Color::green());
+
+    auto& qs = some_surface.createShader();
+
+#if 0
+  qs.addSource(R"FRAG(
+out vec4 foFragColor;
+
+void main()
+{
+  foFragColor = vec4(0.0f, 1.0f, 0.0, 1.0f);
+}
+)FRAG");
+#endif
+
+  auto& qs_program = qs.program();
+
+  some_surface
+    .drawQuad({ 50, 35 }, { 50, 70 }, &qs, {});
 
   glViewport(0, 0, window_geometry.w, window_geometry.h);
   

@@ -18,6 +18,7 @@ namespace brgb {
 // Forward declarations
 class OSDBitmapFont;
 class OSDPixmap;
+class OSDQuadShader;
 class OSDDrawCall;
 class GLVertexArray;
 class GLProgram;
@@ -58,9 +59,15 @@ public:
       const Color& bg = Color::transparent()
     ) -> OSDSurface&;
 
+  auto createShader() -> OSDQuadShader&;
+
   auto writeString(ivec2 pos, const char *string, const Color& color) -> OSDSurface&;
 
-  auto drawQuad(ivec2 pos, ivec2 size, std::initializer_list<OSDPixmap *> pixmaps) -> OSDSurface&;
+  auto drawQuad(
+      ivec2 pos, ivec2 width_height,
+      OSDQuadShader *shader,
+      std::initializer_list<OSDPixmap *> pixmaps
+    ) -> OSDSurface&;
 
   auto draw() -> std::vector<OSDDrawCall>;
 
@@ -99,6 +106,7 @@ private:
   void destroyFontGLObjects();
 
   void appendStringDrawcalls(std::vector<OSDDrawCall>& drawcalls);
+  void appendShadedQuadDrawcalls(std::vector<OSDDrawCall>& drawcalls);
 
   // Array of GLProgram *[OSDDrawCall::NumDrawTypes]
   //   - NOTE: pointers in this array CAN be nullptr
@@ -120,6 +128,17 @@ private:
   };
 
   std::vector<StringObject> string_objects_;
+
+  // Shaded quad related data structures
+  struct ShadedQuadObject {
+    ivec2 position;
+    ivec2 width_height;
+
+    OSDQuadShader *shader;
+  };
+
+  std::vector<OSDQuadShader> shadedquad_shaders_;
+  std::vector<ShadedQuadObject> shadedquad_objects_;
 
   mat4 m_projection;
 
