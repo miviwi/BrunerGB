@@ -66,6 +66,8 @@ struct OSDDrawCall {
   GLSize base_instance;
   GLSize instance_count;
 
+  int z;   // See description of 'z' in OSDSurface::StringObject/OSDSurface::ShadedQuadObject
+
   using TextureAndSampler = std::tuple<GLTexture *, GLSampler *>;
   using TextureBindings = std::array<TextureAndSampler, GLNumTexImageUnits>;
 

@@ -70,8 +70,13 @@ auto OSDSurface::writeString(ivec2 pos, const char *string, const Color& color) 
   if(!font_) throw FontNotProvidedError();
 
   string_objects_.push_back(StringObject {
-    pos, std::string(string), color,
+      .position = pos, .z = current_z_,
+
+      .str = std::string(string),
+      .color = color,
   });
+
+  current_z_++;
 
   return *this;
 }
@@ -85,10 +90,13 @@ auto OSDSurface::drawQuad(
   if(!created_) throw NullSurfaceError();
 
   shadedquad_objects_.push_back(ShadedQuadObject {
-      pos, width_height,
+      .position = pos, .z = current_z_,
 
-      shader,
+      .width_height = width_height,
+      .shader = shader,
   });
+
+  current_z_++;
 
   return *this;
 }
@@ -99,6 +107,8 @@ auto OSDSurface::draw() -> std::vector<OSDDrawCall>
 
   appendStringDrawcalls(drawcalls);
   appendShadedQuadDrawcalls(drawcalls);
+
+  sortDrawcalls(drawcalls);
 
   return drawcalls;
 }
@@ -355,18 +365,26 @@ void OSDSurface::appendStringDrawcalls(std::vector<OSDDrawCall>& drawcalls)
 void OSDSurface::appendShadedQuadDrawcalls(std::vector<OSDDrawCall>& drawcalls)
 {
   for(const auto& quad : shadedquad_objects_) {
-    auto program = &quad.shader->program();
-    
-    program->uniformMat4x4("um4Projection", m_projection.data());
+    quad.shader->program()
+      .uniformMat4x4("um4Projection", m_projection.data());
 
     drawcalls.push_back(
         osd_drawcall_quad(
             empty_vertex_array_.get(),
             quad.position, quad.width_height,
             nullptr /* textures */, nullptr /* samplers */, 0 /* num_textures */,
-            program)
+            &quad.shader->program())
     );
   }
+}
+
+void OSDSurface::sortDrawcalls(std::vector<OSDDrawCall>& drawcalls)
+{
+#if 0
+  std::sort(drawcalls.begin(), drawcalls.end(), [](const OSDDrawCall& a, const OSDDrawCall& b) {
+      return a.z < b.z;
+  });
+#endif
 }
 
 }

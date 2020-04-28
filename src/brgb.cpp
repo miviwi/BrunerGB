@@ -347,34 +347,32 @@ int main(int argc, char *argv[])
   OSDSurface some_surface;
   some_surface
     .create({ window_geometry.w, window_geometry.h }, &topaz)
-    .writeString({ 0, 30 }, "hello, world!", Color::red())
     .writeString({ 0, 0 }, "ASDF1234567890", Color::red())
     .writeString({ 128, 100 }, "xyz", Color::blue())
     .writeString({ 128, 200 }, "!#@$", Color::green());
 
     auto& qs = some_surface.createShader();
 
-#if 0
-  qs.addSource(R"FRAG(
-out vec4 foFragColor;
+    qs.addPixmapArray("usFrameHistory", 2); 
 
-void main()
-{
-  foFragColor = vec4(0.0f, 1.0f, 0.0, 1.0f);
-}
-)FRAG");
-#endif
+    qs
+      .addFunction("vec4 computeFragColor()",
+R"FRAG(
+  return vec4(fi.UV, 0.0f, 1.0f);
+)FRAG")
+      .entrypoint("computeFragColor");
 
   auto& qs_program = qs.program();
 
   some_surface
-    .drawQuad({ 50, 35 }, { 50, 70 }, &qs, {});
+    .drawQuad({ 50, 35 }, { 50, 70 }, &qs, {})
+    .writeString({ 0, 30 }, "hello, world!", Color::red());
 
   glViewport(0, 0, window_geometry.w, window_geometry.h);
   
   bool running = true;
   bool change = false;
-  bool use_fence = false;
+  bool use_fence = true;
   while(running) {
     auto ev = event_loop.event();
     bool use_fence_initial = use_fence;
@@ -450,6 +448,7 @@ void main()
 
     auto ms_counts = std::chrono::milliseconds(1).count(); 
 
+#if 0
     if(use_fence_initial != use_fence && !use_fence) {
       printf("\nswapBuffers() without blocking on a fence took: %ldus\n\n",
           std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
@@ -457,6 +456,7 @@ void main()
       printf("\nswapBuffers() AFTER BLOCKING on a fence took: %ldus\n\n",
           std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
     }
+#endif
 
     gl_context.dbg_PopCallGroup();
 

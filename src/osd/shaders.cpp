@@ -206,10 +206,10 @@ uniform ivec4 uv4Quad_Pos_Dimensions;
 uniform mat4 um4Projection;
 
 const vec2 UVs[4] = vec2[](
-  vec2(0.0f, 0.0f),
-  vec2(0.0f, 1.0f),
-  vec2(1.0f, 1.0f),
-  vec2(1.0f, 0.0f)
+  vec2(0.0f, 1.0f),         // Top-left
+  vec2(0.0f, 0.0f),         // Bottom-left
+  vec2(1.0f, 0.0f),         // Bottom-right
+  vec2(1.0f, 1.0f)          // Top-right
 );
 
 // Gives an integer in the range [0;3] which is an

@@ -108,6 +108,9 @@ private:
   void appendStringDrawcalls(std::vector<OSDDrawCall>& drawcalls);
   void appendShadedQuadDrawcalls(std::vector<OSDDrawCall>& drawcalls);
 
+  // Sorts 'drawcalls' in-place according to their 'z' value
+  void sortDrawcalls(std::vector<OSDDrawCall>& drawcalls);
+
   // Array of GLProgram *[OSDDrawCall::NumDrawTypes]
   //   - NOTE: pointers in this array CAN be nullptr
   //      (done for ease of indexing)
@@ -120,9 +123,17 @@ private:
   // Set to 'true' after create() is called
   bool created_;
 
+  // Incremented after any of the draw methods is called
+  //   i.e. writeString(), drawQuad(), ...
+  int current_z_;
+
   // String related data structures
   struct StringObject {
     ivec2 position;
+
+    int z;  // An object with a higher 'z' value, will
+            //   be in front of one with a lower 'z'
+
     std::string str;
     Color color;
   };
@@ -132,6 +143,10 @@ private:
   // Shaded quad related data structures
   struct ShadedQuadObject {
     ivec2 position;
+
+    int z;  // An object with a higher 'z' value, will
+            //   be in front of one with a lower 'z'
+
     ivec2 width_height;
 
     OSDQuadShader *shader;
