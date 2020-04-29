@@ -39,6 +39,7 @@
 #include <bus/device.h>
 #include <bus/memorymap.h>
 #include <sched/device.h>
+#include <system/gb/gb.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -102,149 +103,13 @@ auto load_bootrom() -> std::optional<std::vector<uint8_t>>
   return bootrom;
 }
 
-class TestCPU : public sm83::Processor {
-public:
-  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
-  {
-    auto map = bus->createMap(this);
-
-    // Perform some device-specific initialization here for 'target'
-
-    return map;
-  }
-
-  virtual auto detach(DeviceMemoryMap *map) -> void final
-  {
-  }
-
-  virtual auto power() -> void
-  {
-    sm83::Processor::power();
-  }
-
-  virtual auto main() -> void
-  {
-    scheduler()->yield(ISchedDevice::Sync);
-  }
-
-protected:
-  virtual auto read(u16 addr) -> u8
-  {
-    return bus().readByte(addr);
-  }
-
-  virtual auto write(u16 addr, u8 data) -> void
-  {
-    bus().writeByte(addr, data);
-  }
-};
-
-class TestRAM : public IBusDevice {
-public:
-  virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * final
-  {
-    return bus->createMap(this);
-  }
-
-  virtual auto detach(DeviceMemoryMap *map) -> void final
-  {
-    assert(0);
-  }
-
-  auto readByteHandler() -> BusReadHandler::ByteHandler
-  {
-    return BusReadHandler::ByteHandler([this](auto addr) -> u8 {
-        return readByte((u16)addr);
-    });
-  }
-
-  auto writeByteHandler() -> BusWriteHandler::ByteHandler
-  {
-    return BusWriteHandler::ByteHandler([this](auto addr, u8 data) -> void {
-        writeByte((u16)addr, data);
-    });
-  }
-
-private:
-  auto readByte(u16 address) -> u8
-  {
-    return ram_[address];
-  }
-
-  auto writeByte(u16 address, u8 data) -> void
-  {
-    ram_[address] = data;
-  }
-
-  u8 ram_[0x2000];
-};
-
-class TestSystem {
-public:
-  auto init() -> TestSystem&
-  {
-    bus = std::make_unique<SystemBus>();
-
-    cpu = std::make_unique<TestCPU>();
-    ram = std::make_unique<TestRAM>();
-
-    bus->addressSpaceFactory([]() -> IAddressSpace * {
-        return new AddressSpace<16>();
-    });
-
-    cpu->connect(bus.get());
-
-    auto& cpu_ram = *cpu->attach(bus.get(), ram.get());
-
-    cpu_ram
-      .r("0x0000-0x1fff,0x4000-0x5fff", [this](BusTransactionHandlerSetRef& handler_set) {
-          handler_set.get<BusReadHandlerSet>()
-            .fn(ram->readByteHandler())
-            .mask(0x1fff);
-      })
-      .w("0x0000-0x1fff,0x4000-0x5fff", [this](BusTransactionHandlerSetRef& handler_set) {
-          handler_set.get<BusWriteHandlerSet>()
-            .fn(ram->writeByteHandler())
-            .mask(0x1fff);
-      });
-
-   auto cpu_bus = cpu->bus();
-
-   cpu_bus.writeByte(0x0000, 0x12);
-   cpu_bus.writeByte(0x4001, 0x34);
-
-   printf("cpu_bus@0x0000 = 0x%.2x\n",  (unsigned)cpu_bus.readByte(0x0000));
-   printf("cpu_bus@0x0001 = 0x%.2x\n",  (unsigned)cpu_bus.readByte(0x0001));
-
-#if 0
-   auto test_lookup = [&](u16 addr) {
-     printf("lookup(0x%.4x) -> %p\n", addr, cpu_ram.lookupR(addr));
-   };
-
-   test_lookup(0x0000);
-   test_lookup(0x100f);
-   test_lookup(0x1fff);
-   test_lookup(0x2000);
-   test_lookup(0x4000);
-   test_lookup(0x6000);
-#endif
-
-    return *this;
-  }
-
-  std::unique_ptr<SystemBus> bus;
-
-  std::unique_ptr<TestCPU> cpu;
-  std::unique_ptr<TestRAM> ram;
-};
-
-auto test_cpu() -> void
+auto test_system() -> void
 {
-  TestSystem test_system;
+  Gameboy gb;
 
-  test_system.init();
-
-
+  gb
+    .init()
+    .power();
 }
 
 auto test_disasm() -> void
@@ -279,7 +144,7 @@ int main(int argc, char *argv[])
     .init(&window);
 
 //  test_cpu();
-//  test_disasm();
+  test_system();
 //  return 0;
 
   GLXContext gl_context;

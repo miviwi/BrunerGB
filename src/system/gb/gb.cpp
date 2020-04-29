@@ -1,5 +1,6 @@
-#include "bus/bus.h"
 #include <system/gb/gb.h>
+
+#include <sched/thread.h>
 
 #include <cassert>
 
@@ -14,6 +15,10 @@ Gameboy::Gameboy() :
 
 auto Gameboy::init() -> Gameboy&
 {
+  sched.add(Thread::create(SystemClock, cpu_.get()));
+  // TODO: create threads for the rest of the devices
+
+  was_init_ = true;
 
   return *this;
 }
@@ -23,6 +28,10 @@ auto Gameboy::power() -> void
   assert(was_init_ && "init() MUST be called before power()!");
 
   cpu().power();
+  // TODO: power up the rest of the devices
+
+  // Make the CPU the primary device
+  sched.power(cpu_.get());
 }
 
 auto Gameboy::cpu() -> gb::CPU&

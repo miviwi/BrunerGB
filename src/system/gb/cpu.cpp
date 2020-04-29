@@ -25,11 +25,14 @@ auto CPU::power() -> void
 
 auto CPU::main() -> void
 {
+  // TODO: handle interrupts
+  
+  instruction();   // Fetch, decode and execute an instruction
 }
 
 auto CPU::read(u16 addr) -> u8
 {
-  u8 data = bus_->readByte(addr);
+  u8 data = bus().readByte(addr);
 
   // 1 memory cycle = 4 internal cycles (t-cycles)
   tick(4);
@@ -39,7 +42,7 @@ auto CPU::read(u16 addr) -> u8
 
 auto CPU::write(u16 addr, u8 data) -> void
 {
-  bus_->writeByte(addr, data);
+  bus().writeByte(addr, data);
 
   tick(4);
 }
