@@ -8,7 +8,7 @@
 #include <cassert>
 #include <cstddef>
 
-namespace brgb::sm83 {
+namespace brgb::sm83disasm {
 
 static constexpr u8 OpcodeNOP  = 0x00;
 static constexpr u8 OpcodeSTOP = 0x10;

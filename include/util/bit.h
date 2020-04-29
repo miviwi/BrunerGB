@@ -337,6 +337,15 @@ private:
 template <size_t Precision, int Which>
 using Bit = BitRange<Precision, Which, Which>;
 
+template <int Lo, int Hi>
+using bits8 = BitRange<8, Lo, Hi>;
+
+template <int Lo, int Hi>
+using bits16 = BitRange<16, Lo, Hi>;
+
+template <int Lo, int Hi>
+using bits32 = BitRange<32, Lo, Hi>;
+
 static inline auto bswap_u32(u32 v) -> u32
 {
   return __builtin_bswap32(v);

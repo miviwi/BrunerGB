@@ -1,4 +1,5 @@
 #include <device/sm83/cpu.h>
+#include <device/sm83/instruction.h>
 
 #include <bus/memorymap.h>
 
@@ -41,6 +42,11 @@ auto Processor::power() -> void
   r = { };
 }
 
+auto Processor::opcode() -> u8
+{
+  return read(PC++);
+}
+
 auto Processor::operand8() -> u8
 {
   return read(PC++);
@@ -70,6 +76,111 @@ auto Processor::pop16() -> u16
   data.bit(8, 15) = read(SP++);
 
   return data;
+}
+
+auto Processor::reg(Reg8 which) -> u8
+{
+  switch(which) {
+  case Reg8::b:          return B;
+  case Reg8::c:          return C;
+  case Reg8::d:          return D;
+  case Reg8::e:          return E;
+  case Reg8::h:          return H;
+  case Reg8::l:          return L;
+  case Reg8::HLIndirect: return read(HL);
+  case Reg8::a:          return A;
+  }
+
+  assert(0);   // Unreachable
+  return 0;
+}
+
+auto Processor::reg(Reg8 which, u8 data) -> void
+{
+  switch(which) {
+  case Reg8::b:          B = data; break;
+  case Reg8::c:          C = data; break;
+  case Reg8::d:          D = data; break;
+  case Reg8::e:          E = data; break;
+  case Reg8::h:          H = data; break;
+  case Reg8::l:          L = data; break;
+  case Reg8::HLIndirect: write(HL, data); break;
+  case Reg8::a:          A = data; break;
+  }
+}
+
+auto Processor::reg(Reg16_rp which) -> u16
+{
+  switch(which) {
+  case Reg16_rp::bc: return BC;
+  case Reg16_rp::de: return DE;
+  case Reg16_rp::hl: return HL;
+  case Reg16_rp::sp: return SP;
+  }
+
+  assert(0);   // Unreachable
+  return 0;
+}
+
+auto Processor::reg(Reg16_rp which, u16 data) -> void
+{
+  switch(which) {
+  case Reg16_rp::bc: BC = data; break;
+  case Reg16_rp::de: DE = data; break;
+  case Reg16_rp::hl: HL = data; break;
+  case Reg16_rp::sp: SP = data; break;
+  }
+}
+
+auto Processor::reg(Reg16_rp2 which) -> u16
+{
+  switch(which) {
+  case Reg16_rp2::bc: return BC;
+  case Reg16_rp2::de: return DE;
+  case Reg16_rp2::hl: return HL;
+  case Reg16_rp2::af: return AF;
+  }
+
+  assert(0);   // Unreachable
+  return 0;
+}
+
+auto Processor::reg(Reg16_rp2 which, u16 data) -> void
+{
+  switch(which) {
+  case Reg16_rp2::bc: BC = data; break;
+  case Reg16_rp2::de: DE = data; break;
+  case Reg16_rp2::hl: HL = data; break;
+  case Reg16_rp2::af: AF = data; break;
+  }
+}
+
+auto Processor::instruction() -> void
+{
+  auto i = Instruction(opcode());
+
+  auto op_x0 = [this](Instruction i) {
+    switch(i.z()) {
+    case 6: reg(i.reg8_y(), operand8()); break;
+    }
+  };
+
+  switch(i.x()) {
+  case 0: op_x0(i); break;
+
+  case 1: {
+    u8 y = i.y();
+    u8 z = i.z();
+
+    if(z == 6 && y == 6) return opHALT();
+
+    u8 data = reg(i.reg8_z());
+    reg(i.reg8_y(), data);
+    break;
+  }
+  }
+
+
 }
 
 }

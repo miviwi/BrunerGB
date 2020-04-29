@@ -5,6 +5,7 @@
 #include <sched/device.h>
 
 #include <device/sm83/registers.h>
+#include <device/sm83/instruction.h>
 
 #include <memory>
 
@@ -28,24 +29,35 @@ protected:
   virtual auto read(u16 addr) -> u8 = 0;
   virtual auto write(u16 addr, u8 data) -> void = 0;
 
+  auto instruction() -> void;
+
+  // ops.cpp
+  auto opHALT() -> void;
+
   std::unique_ptr<ProcessorBus> bus_;
 
 private:
+  auto opcode() -> u8;
+
   auto operand8() -> u8;
   auto operand16() -> u16;
 
   auto push16(u16 data) -> void;
   auto pop16() -> u16;
 
-  auto op_nop() -> void;                                     // nop
-  auto op_stop() -> void;                                    // stop 0
-  auto op_jr(u1 cond) -> void;                               // jr <cond>, <rel8>
-  auto op_ld_Imm16(Natural<16>& reg) -> void;                // ld <reg16>, <imm16>
-  auto op_ld_Indirect16(Natural<16>& ptr, u8 data) -> void;  // ld (<reg16>), a
-  auto op_ldi(u8 data) -> void;                              // ld (hl+), a
-  auto op_ldd(u8 data) -> void;                              // ld (hl-), a
-  auto op_inc_Reg16(Natural<16>& reg) -> void;               // inc <reg16>
-  auto op_dec_Reg16(Natural<16>& reg) -> void;               // dec <reg16>
+  // Return the value of the register specified by 'which'
+  auto reg(Reg8 which) -> u8;
+  auto reg(Reg16_rp which) -> u16;
+  auto reg(Reg16_rp2 which) -> u16;
+
+  // Set the register specified by 'which' to 'val'
+  auto reg(Reg8 which, u8 val) -> void;
+  auto reg(Reg16_rp which, u16 val) -> void;
+  auto reg(Reg16_rp2 which, u16 val) -> void;
+
+  auto alu(AluOp op, u8 val) -> void;
+  auto rot(RotOp op, u8 val) -> void;
+  auto akku(AkkuOp op) -> void;
 
   Registers r;
 };

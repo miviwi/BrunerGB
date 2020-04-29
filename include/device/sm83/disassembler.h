@@ -16,7 +16,7 @@
 
 #include <cstddef>
 
-namespace brgb::sm83 {
+namespace brgb::sm83disasm {
 
 enum OpcodeMnemonic : u8 {
   op_Invalid,

@@ -251,7 +251,7 @@ auto test_disasm() -> void
 {
   auto bootrom = load_bootrom();
 
-  sm83::Disassembler disasm;
+  sm83disasm::Disassembler disasm;
 
   disasm.begin(bootrom->data());
 
