@@ -43,6 +43,17 @@ public:
 
   Instruction(u8 op);
 
+  // Opcode structure:
+  //   | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+  //     ^   ^   ^   ^   ^   ^       ^
+  //     |   |   |   |   |   |       |
+  //     |   |   |   |   |   |       |
+  //     \___/   \___/   v   \_______/
+  //       x     | p     q       z
+  //             |       |
+  //             \_______/
+  //                 y
+
   inline auto opcode() -> u8 { return op_; }
 
   inline auto x() { return op_.bit(6, 7); }
@@ -60,6 +71,10 @@ public:
 
   inline auto cc() -> ConditionCode { return (ConditionCode)y().get(); }
   inline auto ccForJr() -> ConditionCode { return (ConditionCode)(y().get()-4); }
+
+  inline auto alu_y() -> AluOp { return (AluOp)y().get(); }
+  inline auto rot_y() -> RotOp { return (RotOp)y().get(); }
+  inline auto akku_y() -> AkkuOp { return (AkkuOp)y().get(); }
 
   // x=0
   //   z=0  =>  y=0(nop), y=1(ld (a16), sp), y=2(stop), y=3(jr), y=4..7(jr cc)

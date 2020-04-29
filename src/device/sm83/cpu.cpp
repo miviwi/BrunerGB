@@ -155,19 +155,52 @@ auto Processor::reg(Reg16_rp2 which, u16 data) -> void
   }
 }
 
+auto Processor::alu(AluOp op, u8 val) -> void
+{
+}
+
+auto Processor::rot(RotOp op, u8 val) -> void
+{
+}
+
+auto Processor::akku(AkkuOp op) -> void
+{
+}
+
 auto Processor::instruction() -> void
 {
   auto i = Instruction(opcode());
 
   auto op_x0 = [this](Instruction i) {
     switch(i.z()) {
+    case 0: switch(i.y()) {
+      case 0: /* nop */ break;
+    }
+    break;
+
+    case 1:
+      if(i.q() == 0) {
+        //  ld <reg16>, imm16
+        reg(i.reg16rp_p(), operand16());
+      } else {
+      }
+      break;
+
+    //  ld <reg8>, imm8
     case 6: reg(i.reg8_y(), operand8()); break;
+    }
+  };
+
+  auto op_x3 = [this](Instruction i) {
+    switch(i.z()) {
     }
   };
 
   switch(i.x()) {
   case 0: op_x0(i); break;
 
+  //  ld <reg8>, <reg8>
+  //  halt
   case 1: {
     u8 y = i.y();
     u8 z = i.z();
@@ -178,9 +211,19 @@ auto Processor::instruction() -> void
     reg(i.reg8_y(), data);
     break;
   }
+
+  //  add a, <reg8>
+  //  adc a, <reg8>
+  //  sub <reg8>
+  //  sbc a, <reg8>
+  //  and <reg8>
+  //  xor <reg8>
+  //  or <reg8>
+  //  cp <reg8>
+  case 2: alu(i.alu_y(), reg(i.reg8_z())); break;
+
+  case 3: op_x3(i); break;
   }
-
-
 }
 
 }
