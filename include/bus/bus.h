@@ -17,12 +17,15 @@ class DeviceMemoryMap;
 template <size_t AddressWidth>
 class AddressSpace;
 
+// Special token type
+using DeviceToken = u32;
+
 class SystemBus {
 public:
-  using AddressSpaceFactory = std::function<IAddressSpace *()>;
+  using AddressSpaceFactory = std::function<IAddressSpace *(u32)>;
 
   // Returns an AddressSpace created by the cuurently used AddressSpaceFactory
-  auto addressSpaceFactory() const -> IAddressSpace *;
+  auto addressSpaceFactory(IBusDevice *device) const -> IAddressSpace *;
    
   // Set the AddressSpaceFactory used by this SystemBus, which
   //   is supposed to return an AddressSpace<AddressWidth> of the

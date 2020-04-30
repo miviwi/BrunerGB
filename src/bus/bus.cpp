@@ -8,12 +8,14 @@
 
 namespace brgb {
 
-auto SystemBus::addressSpaceFactory() const -> IAddressSpace *
+auto SystemBus::addressSpaceFactory(IBusDevice *device) const -> IAddressSpace *
 {
   assert(addrspace_factory_ &&
       "SystemBus::addressSpaceFactory() called without a valid AddressSpaceFactory!");
 
-  return addrspace_factory_();
+  auto dev_token = device->deviceToken();
+
+  return addrspace_factory_(dev_token);
 }
 
 auto SystemBus::addressSpaceFactory(AddressSpaceFactory factory) -> SystemBus&
@@ -48,7 +50,7 @@ auto SystemBus::deviceAddressSpace(IBusDevice *device) -> IAddressSpace *
 auto SystemBus::createAddressSpace(IBusDevice *device) -> IAddressSpace *
 {
   // Allocate a clean AddressSpace...
-  auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory());
+  auto device_addrspace = std::shared_ptr<IAddressSpace>(addressSpaceFactory(device));
 
   //  ...and place it in the map
   auto [it, inserted] = devices_.emplace(device, device_addrspace);

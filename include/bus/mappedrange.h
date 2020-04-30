@@ -42,6 +42,7 @@ public:
   //   - 'hi' (i.e. the end of the range) is inclusive
   Address lo, hi;
 
+
   auto mask() const -> Address { return mask_; }
   auto base() const -> Address { return base_; }
 
@@ -87,6 +88,50 @@ public:
   using ByteHandler = std::function<u8(Address)>;
   using WordHandler = std::function<u16(Address)>;
 
+  template <typename HandlerAddress, typename HandlerFnType>
+  static auto for_u8_with_addr_width(HandlerFnType handler) -> ByteHandler
+  {
+    // Ensure 'HandlerAddress' has one of the allowed types...
+    static_assert(std::is_unsigned_v<HandlerAddress>,
+        "The 'HandlerAddress' must be an unsigned integer type");
+
+    //  ...and that 'HandlerFnType' is a callable which matches
+    //   the signature for a read handler:
+    //       u8(HandlerAddress addr),
+
+    static_assert(
+        //   BusReadHandler::ByteHandler
+        std::is_invocable_r_v<u8, HandlerFnType, HandlerAddress>,
+        "'HandlerFnType' has an incompatible call signature!"
+    );
+
+    return ByteHandler([=](Address addr) -> u8 {
+        return handler((HandlerAddress)addr);
+    });
+  }
+
+  template <typename HandlerAddress, typename HandlerFnType>
+  static auto for_u16_with_addr_width(HandlerFnType handler) -> WordHandler
+  {
+    // Ensure 'HandlerAddress' has one of the allowed types...
+    static_assert(std::is_unsigned_v<HandlerAddress>,
+        "The 'HandlerAddress' must be an unsigned integer type");
+
+    //  ...and that 'HandlerFnType' is a callable which matches
+    //   the signature for a read handler:
+    //       u16(HandlerAddress addr),
+
+    static_assert(
+        //   BusReadHandler::WordHandler
+        std::is_invocable_r_v<u16, HandlerFnType, HandlerAddress>,
+        "'HandlerFnType' has an incompatible call signature!"
+    );
+
+    return WordHandler([=](Address addr) -> u8 {
+        return handler((HandlerAddress)addr);
+    });
+  }
+
   BusReadHandler() = default;
 
   auto mask() const -> Address { return mask_; }
@@ -121,6 +166,50 @@ class BusWriteHandler final : public BusTransactionHandler {
 public:
   using ByteHandler = std::function<void(Address, u8 /* data */)>;
   using WordHandler = std::function<void(Address, u16 /* data */)>;
+
+  template <typename HandlerAddress, typename HandlerFnType>
+  static auto for_u8_with_addr_width(HandlerFnType handler) -> ByteHandler
+  {
+    // Ensure 'HandlerAddress' has one of the allowed types...
+    static_assert(std::is_unsigned_v<HandlerAddress>,
+        "The 'HandlerAddress' must be an unsigned integer type");
+
+    //  ...and that 'HandlerFnType' is a callable which matches
+    //   the signature for a write handler:
+    //       void(HandlerAddress addr, u8 data)
+
+    static_assert(
+        //   BusWriteHandler::ByteHandler
+        std::is_invocable_r_v<void, HandlerFnType, HandlerAddress, u8>,
+        "'HandlerFnType' has an incompatible call signature!"
+    );
+
+    return ByteHandler([=](Address addr, u8 data) -> void {
+        return handler((HandlerAddress)addr, data);
+    });
+  }
+
+  template <typename HandlerAddress, typename HandlerFnType>
+  static auto for_u16_with_addr_width(HandlerFnType handler) -> WordHandler
+  {
+    // Ensure 'HandlerAddress' has one of the allowed types...
+    static_assert(std::is_unsigned_v<HandlerAddress>,
+        "The 'HandlerAddress' must be an unsigned integer type");
+
+    //  ...and that 'HandlerFnType' is a callable which matches
+    //   the signature for a write handler:
+    //       void(HandlerAddress addr, u16 data)
+
+    static_assert(
+        //   BusWriteHandler::WordHandler
+        std::is_invocable_r_v<void, HandlerFnType, HandlerAddress, u16>,
+        "'HandlerFnType' has an incompatible call signature!"
+    );
+
+    return WordHandler([=](Address addr, u16 data) -> void {
+        return handler((HandlerAddress)addr, data);
+    });
+  }
 
   BusWriteHandler() = default;
 

@@ -19,6 +19,8 @@ public:
 
   auto bus() -> ProcessorBus&;
 
+  virtual auto deviceToken() -> DeviceToken = 0;
+
   virtual auto attach(SystemBus *bus, IBusDevice *target) -> DeviceMemoryMap * = 0;
   virtual auto detach(DeviceMemoryMap *map) -> void = 0;
 

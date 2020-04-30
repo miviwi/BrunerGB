@@ -8,10 +8,14 @@
 
 namespace brgb::gb {
 
+auto CPU::deviceToken() -> DeviceToken
+{
+  return GameboyCPUDeviceToken;
+}
+
 auto CPU::attach(SystemBus *sys_bus, IBusDevice *target) -> DeviceMemoryMap*
 {
-  assert(0);
-  return nullptr;
+  return sys_bus->createMap(this);
 }
 
 auto CPU::detach(DeviceMemoryMap *map) -> void

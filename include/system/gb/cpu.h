@@ -9,7 +9,11 @@ namespace brgb::gb {
 
 class CPU final : public sm83::Processor {
 public:
-  virtual auto attach(SystemBus *sys_bus, IBusDevice *target) -> DeviceMemoryMap* final;
+  static constexpr DeviceToken GameboyCPUDeviceToken = 0x0000'1000;
+
+  virtual auto deviceToken() -> DeviceToken final;
+
+  virtual auto attach(SystemBus *sys_bus, IBusDevice *target = nullptr) -> DeviceMemoryMap* final;
   virtual auto detach(DeviceMemoryMap *map) -> void final;
 
   virtual auto power() -> void final;

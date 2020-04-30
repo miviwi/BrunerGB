@@ -2,11 +2,13 @@
 
 #include <bus/bus.h>
 #include <bus/memorymap.h>
+#include <bus/mappedrange.h>
 #include <sched/scheduler.h>
 
 #include <system/gb/cpu.h>
 
 #include <memory>
+#include <array>
 
 namespace brgb {
 
@@ -23,7 +25,15 @@ public:
   auto power() -> void;
 
 private:
+  auto sysBus() -> SystemBus&;
+
   auto cpu() -> gb::CPU&;
+
+  auto wramReadHandler() -> BusReadHandler::ByteHandler;
+  auto wramWriteHandler() -> BusWriteHandler::ByteHandler;
+
+  auto hramReadHandler() -> BusReadHandler::ByteHandler;
+  auto hramWriteHandler() -> BusWriteHandler::ByteHandler;
 
   // Set to 'true' by init(), when all devices have
   //   been connected to the SystemBus
@@ -35,6 +45,9 @@ private:
 
   // All the system's devices
   std::unique_ptr<gb::CPU> cpu_;
+
+  std::array<u8, 8192> wram_;
+  std::array<u8, 128>  hram_;
 };
 
 }
