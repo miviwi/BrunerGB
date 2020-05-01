@@ -78,6 +78,7 @@ auto AddressSpace<AddressWidth>::writeWord(Address addr, u16 data) -> void
 }
 
 template class AddressSpace<16>;
+template class AddressSpace<21>;
 
 auto DeviceMemoryMap::r(
     const char *address_range, SetupHandlerFn setup_handler

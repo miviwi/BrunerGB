@@ -109,5 +109,6 @@ auto Bus<AddressWidth>::writeWord(Address addr, u16 data) -> void
 }
 
 template class Bus<16>;
+template class Bus<21>;
 
 }
