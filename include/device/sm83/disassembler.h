@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <types.h>
 #include <util/format.h>
 #include <util/natural.h>
