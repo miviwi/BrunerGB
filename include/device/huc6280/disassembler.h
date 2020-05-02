@@ -36,7 +36,7 @@ enum OpcodeMnemonic : u8 {
   op_trb, op_tsb, op_tst,
   op_cmp, op_cpx, op_cpy,
   op_bit,
-  op_jmp, op_jsr,
+  op_jmp, op_jsr, op_bsr,
   op_rts, op_rti,
   op_bra, op_bbsi, op_bbri, op_bcc, op_bcs, op_beq, op_bne, op_bpl, op_bmi, op_bvc, op_bvs,
   op_st0, op_st1, op_st2,
@@ -97,6 +97,11 @@ private:
 
     return opr.value();
   }
+
+  // Returns 'true' when OpcodeMnemonic_to_str() returns a mnemonic
+  //   which contains printf-style formatting %<format> sequences
+  //   and thus - needs further processing
+  auto mnemonicNeedsFmt() -> bool;
 
   // Base address of the binary being diassembled
   u8 *mem_ = nullptr;

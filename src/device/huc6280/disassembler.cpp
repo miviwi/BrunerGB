@@ -358,6 +358,8 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
 
   case 0x20: with_operand(op_jsr, Absolute); break;
 
+  case 0x44: with_operand(op_bsr, PCRelative); break;
+
   case 0x60: op_mnem_ = op_rts; break;
   case 0x40: op_mnem_ = op_rti; break;
 
@@ -421,6 +423,21 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   }
 
   return ptr;
+}
+
+auto Instruction::mnemonicNeedsFmt() -> bool
+{
+  assert(op_mnem_ != op_Invalid);
+
+  switch(op_mnem_) {
+  case op_rmbi:
+  case op_smbi:
+
+  case op_bbri:
+  case op_bbsi: return true;
+  }
+
+  return false;
 }
 
 auto Disassembler::begin(u8 *mem) -> Disassembler&
