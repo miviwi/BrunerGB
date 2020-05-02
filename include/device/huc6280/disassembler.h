@@ -101,7 +101,9 @@ private:
   // Returns 'true' when OpcodeMnemonic_to_str() returns a mnemonic
   //   which contains printf-style formatting %<format> sequences
   //   and thus - needs further processing
-  auto mnemonicNeedsFmt() -> bool;
+  auto mnemonicNeedsFmt(OpcodeMnemonic mnem) -> bool;
+
+  auto fmtMnemonic(std::string fmt, unsigned i) -> std::string;
 
   // Base address of the binary being diassembled
   u8 *mem_ = nullptr;
@@ -109,7 +111,7 @@ private:
   uintptr_t offset_ = std::numeric_limits<uintptr_t>::max();
 
   OpcodeMnemonic op_mnem_ = op_Invalid;
-  u8 op_;
+  Natural<8> op_;
 
   size_t num_operands_ = 0;
   std::array<std::optional<Operand>, 3> operands_ = { std::nullopt, std::nullopt, std::nullopt };

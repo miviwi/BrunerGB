@@ -1,6 +1,8 @@
 #include "sched/scheduler.h"
 #include "util/bit.h"
 #include <cinttypes>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -35,6 +37,7 @@
 #include <device/sm83/cpu.h>
 #include <device/sm83/registers.h>
 #include <device/sm83/disassembler.h>
+#include <device/huc6280/disassembler.h>
 #include <bus/bus.h>
 #include <bus/device.h>
 #include <bus/memorymap.h>
@@ -114,19 +117,29 @@ auto test_system() -> void
 
 auto test_disasm() -> void
 {
-  auto bootrom = load_bootrom();
+  std::vector<u8> binary = {
+    0x00,          // BRK
+    0xEA,          // NOP
+    0xA9, 0x69,    // LDA #$69
+    0x47, 0xEF,    // RMB4 $EF
+    0xD3, 0x00, 0xFF, 0x00, 0x10, 0x00, 0x01, // TIN $FF00, $1000, $100
+    0x80, 0xF2,    // LDA #$69
+  };
 
-  sm83disasm::Disassembler disasm;
+  huc6280disasm::Disassembler disasm;
 
-  disasm.begin(bootrom->data());
+  disasm.begin(binary.data());
 
-  for(int i = 0; i < 35; i++) {
+  for(int i = 0; i < 6; i++) {
     printf(disasm.singleStep().data());
   }
 }
 
 int main(int argc, char *argv[])
 {
+  test_disasm();
+  return 0;
+
   x11_init();
 
   X11Window window;

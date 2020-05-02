@@ -2,7 +2,9 @@
 
 #include <util/natural.h>
 #include <util/bit.h>
+#include <util/format.h>
 
+#include <sstream>
 #include <unordered_map>
 
 #include <cassert>
@@ -112,7 +114,10 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
       OpcodeMnemonic mnem, AddressingMode addr_mode
   ) {
     op_mnem_ = mnem;
-    fetch_operand_by_addressing_mode(addr_mode);
+
+    auto operand = fetch_operand_by_addressing_mode(addr_mode);
+
+    appendOperandByVariant(addr_mode, operand);
   };
 
   auto branch_instruction = [this,&ptr](OpcodeMnemonic mnem) {
@@ -125,8 +130,11 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   ) {
     op_mnem_ = op_tst;
 
-    fetch_operand_by_addressing_mode(Immediate8);
-    fetch_operand_by_addressing_mode(addr_mode);
+    auto imm  = fetch_operand_by_addressing_mode(Immediate8);
+    auto addr = fetch_operand_by_addressing_mode(addr_mode);
+
+    appendOperandByVariant(Immediate8, imm);
+    appendOperandByVariant(addr_mode, addr);
   };
 
   auto block_transfer_instruction = [this,&ptr,&fetch_operand_by_addressing_mode](
@@ -134,9 +142,13 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   ) {
     op_mnem_ = mnem;
 
-    fetch_operand_by_addressing_mode(Immediate16);
-    fetch_operand_by_addressing_mode(Immediate16);
-    fetch_operand_by_addressing_mode(Immediate16);
+    auto src = fetch_operand_by_addressing_mode(Immediate16);
+    auto dst = fetch_operand_by_addressing_mode(Immediate16);
+    auto len = fetch_operand_by_addressing_mode(Immediate16);
+
+    appendOperandByVariant(Immediate16, src);
+    appendOperandByVariant(Immediate16, dst);
+    appendOperandByVariant(Immediate16, len);
   };
 
   switch(op.get()) {
@@ -391,9 +403,9 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   //  RMBi $zp
   //  SMBi $zp
   if(lo_nibble(op) == 0x07) {
-    if(lo_nibble_between(op, 0x00, 0x07)) {
+    if(hi_nibble_between(op, 0x00, 0x70)) {
       op_mnem_ = op_rmbi;
-    } else /* 0x08 >= lo_nibble <= 0x0F */ {
+    } else /* 0x80 >= lo_nibble <= 0xF0 */ {
       op_mnem_ = op_smbi;
     }
 
@@ -407,9 +419,9 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   //  BBRi $zp, $rel
   //  BBSi $zp, $rel
   if(lo_nibble(op) == 0x0F) {
-    if(lo_nibble_between(op, 0x00, 0x07)) {
+    if(hi_nibble_between(op, 0x00, 0x70)) {
       op_mnem_ = op_bbri;
-    } else /* 0x08 >= lo_nibble <= 0x0F */ {
+    } else /* 0x80 >= lo_nibble <= 0xF0 */ {
       op_mnem_ = op_bbsi;
     }
 
@@ -425,11 +437,70 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   return ptr;
 }
 
-auto Instruction::mnemonicNeedsFmt() -> bool
+auto Instruction::toStr() -> std::string
 {
-  assert(op_mnem_ != op_Invalid);
+  assert(op_mnem_ != op_Invalid && "Instruction::toStr(): disassemble MUST be called before!");
 
-  switch(op_mnem_) {
+  std::ostringstream out;
+
+  auto mnem = OpcodeMnemonic_to_str(op_mnem_);
+  if(!mnemonicNeedsFmt(op_mnem_)) {
+    out << mnem;
+  } else {
+    // For RMBi, SMBi, BBRi, BBSi instructions the hi nibble
+    //   contains the 'i' index in the lowest 3 bits
+    out << fmtMnemonic(mnem, op_.bit(4, 7) & 0b0000'0111);
+  }
+
+  for(size_t i = 0; i < num_operands_; i++) {
+    auto& operand = operands_.at(i);
+    assert(operand.has_value());    // Sanity check
+
+    auto [addr_mode, val] = operand.value();
+
+    auto val_u8 = [&]() -> unsigned { return std::get<Operand8>(val).get(); };
+    auto val_i8 = [&]() -> int      { return (i8)std::get<Operand8>(val).get(); };
+
+    auto val_u16 = [&]() -> unsigned { return std::get<Operand16>(val).get(); };
+
+    if(i == 0 /* this is the first operand */) {
+      out << ' ';
+    } else /* further operands are separated by commas */ {
+      out << ", ";
+    }
+
+    switch(addr_mode) {
+    case Implied: break;
+
+    case Immediate8:  out << util::fmt("#$%.2x", val_u8()); break;
+    case Immediate16: out << util::fmt("$%.4x", val_u16()); break;
+
+    case ZeroPage:   out << util::fmt("$%.2x", val_u8()); break;
+    case ZeroPage_X: out << util::fmt("$%.2x, X", val_u8()); break;
+    case ZeroPage_Y: out << util::fmt("$%.2x, Y", val_u8()); break;
+
+    case Absolute:   out << util::fmt("$%.4x", val_u16()); break;
+    case Absolute_X: out << util::fmt("$%.4x, X", val_u16()); break;
+    case Absolute_Y: out << util::fmt("$%.4x, Y", val_u16()); break;
+
+    case IndexedIndirect8_X: out << util::fmt("($%.2x, X)", val_u8()); break;
+    case Indirect8_Y:        out << util::fmt("($%.2x), Y", val_u8()); break;
+
+    case Indirect16:          out << util::fmt("($%.4x)", val_u16()); break;
+    case IndexedIndirect16_X: out << util::fmt("($%.4x, X)", val_u16()); break;
+
+    case PCRelative: out << util::fmt("<$%.4x>", offset_ + val_i8()+2); break;
+    }
+  }
+
+  return out.str();
+}
+
+auto Instruction::mnemonicNeedsFmt(OpcodeMnemonic mnem) -> bool
+{
+  assert(mnem != op_Invalid);
+
+  switch(mnem) {
   case op_rmbi:
   case op_smbi:
 
@@ -438,6 +509,14 @@ auto Instruction::mnemonicNeedsFmt() -> bool
   }
 
   return false;
+}
+
+auto Instruction::fmtMnemonic(std::string fmt, unsigned i) -> std::string
+{
+  assert(fmt.find("%u") != std::string::npos &&
+      "The given mnemonic format string doesn't actually contain any format specifiers!");
+
+  return util::fmt(fmt.data(), i);
 }
 
 auto Disassembler::begin(u8 *mem) -> Disassembler&
@@ -450,8 +529,32 @@ auto Disassembler::begin(u8 *mem) -> Disassembler&
 
 auto Disassembler::singleStep() -> std::string
 {
-  assert(0);
-  return "";
+  Instruction instruction(mem_);
+  u8 *current_instruction = cursor_;
+
+  std::ostringstream out;
+
+  // Append the instruction's offset on the left
+  out << util::fmt("%.4X      ", cursor_ - mem_);
+
+  // Disassemble and append the instruction itself
+  cursor_ = instruction.disassemble(cursor_);
+  out << instruction.toStr();
+
+  // Pad the output to 30 columns (or add a single space
+  //   in case it's width exceedes 30)
+  do { out << ' '; } while(out.tellp() < 30);
+
+  // Write the raw bytes that make up the instruction on the right
+  out << ';';
+  while(current_instruction < cursor_) {
+    out << util::fmt(" %.2X", *current_instruction);
+
+    current_instruction++;
+  }
+  out << '\n';
+
+  return out.str();
 }
 
 }
