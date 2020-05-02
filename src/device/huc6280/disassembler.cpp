@@ -81,6 +81,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
     switch(addr_mode) {
     case Immediate8: return Operand8(*ptr++);
 
+    case Indirect8:
     case ZeroPage:
     case ZeroPage_X:
     case ZeroPage_Y: return Operand8(*ptr++);
@@ -89,7 +90,6 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
     case Absolute:
     case Absolute_X:
     case Absolute_Y:
-    case Indirect16:
     case IndexedIndirect16_X: {
       Operand16 operand;
 
@@ -164,7 +164,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0xAD: with_operand(op_lda, Absolute); break;
   case 0xBD: with_operand(op_lda, Absolute_X); break;
   case 0xB9: with_operand(op_lda, Absolute_Y); break;
-  case 0xB2: with_operand(op_lda, Indirect16); break;
+  case 0xB2: with_operand(op_lda, Indirect8); break;
   case 0xA1: with_operand(op_lda, IndexedIndirect8_X); break;
   case 0xB1: with_operand(op_lda, Indirect8_Y); break;
 
@@ -185,7 +185,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x8D: with_operand(op_sta, Absolute); break;
   case 0x9D: with_operand(op_sta, Absolute_X); break;
   case 0x99: with_operand(op_sta, Absolute_Y); break;
-  case 0x92: with_operand(op_sta, Indirect16); break;
+  case 0x92: with_operand(op_sta, Indirect8); break;
   case 0x81: with_operand(op_sta, IndexedIndirect8_X); break;
   case 0x91: with_operand(op_sta, Indirect8_Y); break;
 
@@ -244,7 +244,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x6D: with_operand(op_adc, Absolute); break;
   case 0x7D: with_operand(op_adc, Absolute_X); break;
   case 0x79: with_operand(op_adc, Absolute_Y); break;
-  case 0x72: with_operand(op_adc, Indirect16); break;
+  case 0x72: with_operand(op_adc, Indirect8); break;
   case 0x61: with_operand(op_adc, IndexedIndirect8_X); break;
   case 0x71: with_operand(op_adc, Indirect8_Y); break;
 
@@ -254,7 +254,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0xED: with_operand(op_sbc, Absolute); break;
   case 0xFD: with_operand(op_sbc, Absolute_X); break;
   case 0xF9: with_operand(op_sbc, Absolute_Y); break;
-  case 0xF2: with_operand(op_sbc, Indirect16); break;
+  case 0xF2: with_operand(op_sbc, Indirect8); break;
   case 0xE1: with_operand(op_sbc, IndexedIndirect8_X); break;
   case 0xF1: with_operand(op_sbc, Indirect8_Y); break;
 
@@ -264,7 +264,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x2D: with_operand(op_and, Absolute); break;
   case 0x3D: with_operand(op_and, Absolute_X); break;
   case 0x39: with_operand(op_and, Absolute_Y); break;
-  case 0x32: with_operand(op_and, Indirect16); break;
+  case 0x32: with_operand(op_and, Indirect8); break;
   case 0x21: with_operand(op_and, IndexedIndirect8_X); break;
   case 0x31: with_operand(op_and, Indirect8_Y); break;
 
@@ -274,7 +274,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x0D: with_operand(op_ora, Absolute); break;
   case 0x1D: with_operand(op_ora, Absolute_X); break;
   case 0x19: with_operand(op_ora, Absolute_Y); break;
-  case 0x12: with_operand(op_ora, Indirect16); break;
+  case 0x12: with_operand(op_ora, Indirect8); break;
   case 0x01: with_operand(op_ora, IndexedIndirect8_X); break;
   case 0x11: with_operand(op_ora, Indirect8_Y); break;
 
@@ -284,7 +284,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x4D: with_operand(op_eor, Absolute); break;
   case 0x5D: with_operand(op_eor, Absolute_X); break;
   case 0x59: with_operand(op_eor, Absolute_Y); break;
-  case 0x52: with_operand(op_eor, Indirect16); break;
+  case 0x52: with_operand(op_eor, Indirect8); break;
   case 0x41: with_operand(op_eor, IndexedIndirect8_X); break;
   case 0x51: with_operand(op_eor, Indirect8_Y); break;
 
@@ -346,7 +346,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0xCD: with_operand(op_cmp, Absolute); break;
   case 0xDD: with_operand(op_cmp, Absolute_X); break;
   case 0xD9: with_operand(op_cmp, Absolute_Y); break;
-  case 0xD2: with_operand(op_cmp, Indirect16); break;
+  case 0xD2: with_operand(op_cmp, Indirect8); break;
   case 0xC1: with_operand(op_cmp, IndexedIndirect8_X); break;
   case 0xD1: with_operand(op_cmp, Indirect8_Y); break;
 
@@ -365,7 +365,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
   case 0x3C: with_operand(op_bit, Absolute_X); break;
 
   case 0x4C: with_operand(op_jmp, Absolute); break;
-  case 0x6C: with_operand(op_jmp, Indirect16); break;
+  case 0x6C: with_operand(op_jmp, Indirect8); break;
   case 0x7C: with_operand(op_jmp, IndexedIndirect16_X); break;
 
   case 0x20: with_operand(op_jsr, Absolute); break;
@@ -452,6 +452,9 @@ auto Instruction::toStr() -> std::string
     out << fmtMnemonic(mnem, op_.bit(4, 7) & 0b0000'0111);
   }
 
+  // Pad the output (just the mnemonic for now) to 4 columns
+  while(out.tellp() < 4) out << ' ';
+
   for(size_t i = 0; i < num_operands_; i++) {
     auto& operand = operands_.at(i);
     assert(operand.has_value());    // Sanity check
@@ -475,6 +478,7 @@ auto Instruction::toStr() -> std::string
     case Immediate8:  out << util::fmt("#$%.2x", val_u8()); break;
     case Immediate16: out << util::fmt("$%.4x", val_u16()); break;
 
+    case Indirect8:  out << util::fmt("($%.2x)", val_u8()); break;
     case ZeroPage:   out << util::fmt("$%.2x", val_u8()); break;
     case ZeroPage_X: out << util::fmt("$%.2x, X", val_u8()); break;
     case ZeroPage_Y: out << util::fmt("$%.2x, Y", val_u8()); break;
@@ -486,7 +490,6 @@ auto Instruction::toStr() -> std::string
     case IndexedIndirect8_X: out << util::fmt("($%.2x, X)", val_u8()); break;
     case Indirect8_Y:        out << util::fmt("($%.2x), Y", val_u8()); break;
 
-    case Indirect16:          out << util::fmt("($%.4x)", val_u16()); break;
     case IndexedIndirect16_X: out << util::fmt("($%.4x, X)", val_u16()); break;
 
     case PCRelative: out << util::fmt("<$%.4x>", offset_ + val_i8()+2); break;

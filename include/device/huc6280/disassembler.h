@@ -50,8 +50,8 @@ public:
     Immediate8, Immediate16,
     ZeroPage, ZeroPage_X, ZeroPage_Y,
     Absolute, Absolute_X, Absolute_Y,
-    IndexedIndirect8_X, Indirect8_Y,
-    Indirect16, IndexedIndirect16_X,
+    Indirect8, IndexedIndirect8_X, Indirect8_Y,
+    IndexedIndirect16_X,
     PCRelative,   // Used as offset in branch instructions
   };
 

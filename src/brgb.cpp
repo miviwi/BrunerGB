@@ -118,19 +118,27 @@ auto test_system() -> void
 auto test_disasm() -> void
 {
   std::vector<u8> binary = {
-    0x00,          // BRK
-    0xEA,          // NOP
-    0xA9, 0x69,    // LDA #$69
-    0x47, 0xEF,    // RMB4 $EF
+    0x00,                // BRK
+    0xEA,                // NOP
+    0xA9, 0x69,          // LDA #$69
+    0x47, 0xEF,          // RMB4 $EF
     0xD3, 0x00, 0xFF, 0x00, 0x10, 0x00, 0x01, // TIN $FF00, $1000, $100
-    0x80, 0xF2,    // LDA #$69
+    0xA9, 0x69,          // LDA #$69
+    0xA5, 0xAE,          // LDA $AE
+    0xB5, 0x78,          // LDA $78, X
+    0xAD, 0x45, 0xFF,    // LDA $FF45
+    0xBD, 0x90, 0x01,    // LDA $0190, X
+    0xB9, 0xF0, 0x00,    // LDA $00F0, Y
+    0xB2, 0x09,          // LDA ($09)
+    0xA1, 0x00,          // LDA ($00, X)
+    0xB1, 0x15,          // LDA ($15), Y
   };
 
   huc6280disasm::Disassembler disasm;
 
   disasm.begin(binary.data());
 
-  for(int i = 0; i < 6; i++) {
+  for(int i = 0; i < 14; i++) {
     printf(disasm.singleStep().data());
   }
 }
