@@ -61,6 +61,8 @@ target_sources (BrunerGB PRIVATE
   #   HuC6280
   ${SrcDir}/device/huc6280/cpu.cpp
   ${SrcDir}/device/huc6280/registers.cpp
+  ${SrcDir}/device/huc6280/instruction.cpp
+  ${SrcDir}/device/huc6280/disassembler.cpp
 
   # System sources
   #   Gameboy
