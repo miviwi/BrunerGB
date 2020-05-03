@@ -87,13 +87,12 @@ private:
     return opr.value();
   }
 
-  auto appendOperandByVariant(
+  auto appendOperand(
       AddressingMode addr_mode, std::variant<Operand8, Operand16> operand
     ) -> Operand&
   {
     auto& opr = operands_.at(num_operands_++);  // Grab a reference and increment the number
-                                                //   of the Instruction's operands
-    opr.emplace(addr_mode, operand);
+    opr.emplace(addr_mode, operand);            //   of the Instruction's operands
 
     return opr.value();
   }

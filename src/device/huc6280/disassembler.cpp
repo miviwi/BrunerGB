@@ -117,7 +117,7 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
 
     auto operand = fetch_operand_by_addressing_mode(addr_mode);
 
-    appendOperandByVariant(addr_mode, operand);
+    appendOperand(addr_mode, operand);
   };
 
   auto branch_instruction = [this,&ptr](OpcodeMnemonic mnem) {
@@ -133,8 +133,8 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
     auto imm  = fetch_operand_by_addressing_mode(Immediate8);
     auto addr = fetch_operand_by_addressing_mode(addr_mode);
 
-    appendOperandByVariant(Immediate8, imm);
-    appendOperandByVariant(addr_mode, addr);
+    appendOperand(Immediate8, imm);
+    appendOperand(addr_mode, addr);
   };
 
   auto block_transfer_instruction = [this,&ptr,&fetch_operand_by_addressing_mode](
@@ -146,9 +146,9 @@ auto Instruction::disassemble(u8 *ptr) -> u8*
     auto dst = fetch_operand_by_addressing_mode(Immediate16);
     auto len = fetch_operand_by_addressing_mode(Immediate16);
 
-    appendOperandByVariant(Immediate16, src);
-    appendOperandByVariant(Immediate16, dst);
-    appendOperandByVariant(Immediate16, len);
+    appendOperand(Immediate16, src);
+    appendOperand(Immediate16, dst);
+    appendOperand(Immediate16, len);
   };
 
   switch(op.get()) {
